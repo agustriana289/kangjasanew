@@ -5,7 +5,7 @@ import {
   Search, Package, Calendar, Briefcase, Loader2,
   CheckCircle2, Clock, XCircle, CreditCard,
   X, Edit, MessageSquare, ChevronLeft, ChevronRight, Eye,
-  Phone, Mail, FileText, Hash, User, Trash2, Wallet, Users, TrendingUp
+  Phone, Mail, FileText, Hash, User, Trash2, Wallet, Users, TrendingUp, PartyPopper
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
@@ -53,14 +53,22 @@ export default function AdminProjectsClient() {
 
       if (error) throw error;
 
-      setOrders((data || []).map((o: any) => ({ ...o, client: profileMap[o.user_id] || null })));
-      setUsersList(profiles || []);
-
       const { data: services } = await supabase.from("store_services").select("id, title, packages");
       setServicesList(services || []);
 
       const { data: products } = await supabase.from("store_products").select("id, title, packages");
       setProductsList(products || []);
+
+      const { data: testimonials } = await supabase.from("store_testimonials").select("id, order_id");
+      const testimonialMap = new Map();
+      (testimonials || []).forEach((t: any) => testimonialMap.set(t.order_id, t));
+
+      setOrders((data || []).map((o: any) => ({ 
+        ...o, 
+        client: profileMap[o.user_id] || null,
+        testimonial: testimonialMap.get(o.id) || null
+      })));
+      setUsersList(profiles || []);
     } catch (error: any) {
       showToast(error.message || "Failed to fetch projects", "error");
     } finally {
@@ -566,7 +574,36 @@ export default function AdminProjectsClient() {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3 flex-wrap">
+              {selectedProject.status === 'completed' && !selectedProject.user_id && !selectedProject.testimonial && (
+                <button 
+                  disabled={updating}
+                  onClick={async () => {
+                    setUpdating(true);
+                    try {
+                      // Update record that link was generated today
+                      const now = new Date().toISOString();
+                      const { error } = await supabase
+                        .from("store_orders")
+                        .update({ testimonial_link_generated_at: now })
+                        .eq("id", selectedProject.id);
+                      
+                      if (error) throw error;
+                      
+                      navigator.clipboard.writeText(`${window.location.origin}/testimonials/submit/${selectedProject.id}`);
+                      showToast("Testimonial link generated and copied! Expires in 7 days.", "success");
+                      fetchOrders(); // refresh data
+                    } catch (err: any) {
+                      showToast(err.message || "Failed to generate link", "error");
+                    } finally {
+                      setUpdating(false);
+                    }
+                  }}
+                  className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 py-2.5 rounded-xl text-sm font-bold transition-colors border border-emerald-100 disabled:opacity-50">
+                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PartyPopper className="w-4 h-4" />}
+                  Copy Testimonial Link
+                </button>
+              )}
               <button onClick={() => openEditModal(selectedProject)}
                 className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold transition-colors">
                 <Edit className="w-4 h-4" /> Edit Project

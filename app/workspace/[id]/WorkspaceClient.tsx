@@ -579,14 +579,14 @@ export default function WorkspaceClient({ order, user, isAdmin, clientName, admi
                          <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                             <PartyPopper className="w-6 h-6 text-indigo-600" />
                          </div>
-                         <h4 className="text-lg font-bold text-slate-900 mb-1">Terima Kasih Atas Kerjasamanya!</h4>
-                         <p className="text-sm font-medium text-slate-500 mb-6">Testimoni Anda sangat berarti bagi perkembangan kami.</p>
+                         <h4 className="text-lg font-bold text-slate-900 mb-1">Thank You for Your Cooperation!</h4>
+                         <p className="text-sm font-medium text-slate-500 mb-6">Your testimonial means a lot to our growth.</p>
                          
                          <div className="flex justify-center gap-6 mb-4">
                             {[
-                              { label: "Kualitas", score: testimonial.rating_quality },
-                              { label: "Respon", score: testimonial.rating_communication },
-                              { label: "Kecepatan", score: testimonial.rating_speed }
+                              { label: "Quality", score: testimonial.rating_quality },
+                              { label: "Response", score: testimonial.rating_communication },
+                              { label: "Speed", score: testimonial.rating_speed }
                             ].map((r, i) => (
                               <div key={i} className="text-center">
                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{r.label}</p>
@@ -611,15 +611,15 @@ export default function WorkspaceClient({ order, user, isAdmin, clientName, admi
                   return (
                     <form onSubmit={submitTestimonial} className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
                       <div className="text-center">
-                         <h4 className="text-lg font-bold text-slate-900">Beri Nilai Pekerjaan Kami</h4>
-                         <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Project Selesai — Berikan Testimoni Anda</p>
+                         <h4 className="text-lg font-bold text-slate-900">Rate Our Work</h4>
+                         <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Project Completed — Leave Your Testimonial</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                          {[
-                           { label: "Kualitas Pekerjaan", state: ratingQuality, setter: setRatingQuality },
-                           { label: "Respon Obrolan", state: ratingCommunication, setter: setRatingCommunication },
-                           { label: "Kecepatan Pekerjaan", state: ratingSpeed, setter: setRatingSpeed }
+                           { label: "Work Quality", state: ratingQuality, setter: setRatingQuality },
+                           { label: "Communication Response", state: ratingCommunication, setter: setRatingCommunication },
+                           { label: "Work Speed", state: ratingSpeed, setter: setRatingSpeed }
                          ].map((item, i) => (
                            <div key={i} className="flex flex-col items-center gap-2">
                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">{item.label}</span>
@@ -643,7 +643,7 @@ export default function WorkspaceClient({ order, user, isAdmin, clientName, admi
                          <textarea 
                             value={testimonialComment}
                             onChange={e => setTestimonialComment(e.target.value)}
-                            placeholder="Tuliskan pengalaman atau masukan Anda di sini..."
+                            placeholder="Write your experience or feedback here..."
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium min-h-[100px] focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none outline-none"
                          />
                          <button 
@@ -652,7 +652,7 @@ export default function WorkspaceClient({ order, user, isAdmin, clientName, admi
                           className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-indigo-700 transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
                          >
                             {submittingTestimonial ? <Loader2 className="w-4 h-4 animate-spin" /> : <PartyPopper className="w-4 h-4" />}
-                            Kirim Testimoni & Selesaikan
+                            Submit Testimonial & Complete
                          </button>
                       </div>
                     </form>
