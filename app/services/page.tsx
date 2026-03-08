@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, CheckCircle2 } from "lucide-react";
 
 export const metadata = {
-  title: "Services | Kanglogo",
+  title: "Services",
   description: "Explore our professional design and branding services tailored exactly for your needs.",
 };
 
