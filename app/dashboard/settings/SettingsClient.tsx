@@ -327,14 +327,12 @@ export default function SettingsClient() {
   const addListItem = (field: keyof WebsiteSettings, template: any) => {
     setSettings((prev) => ({
       ...prev,
-      // @ts-expect-error dynamic typing
       [field]: [...(prev[field] as any[]), template],
     }));
   };
 
   const removeListItem = (field: keyof WebsiteSettings, index: number) => {
     setSettings((prev) => {
-      // @ts-expect-error dynamic typing
       const arr = [...(prev[field] as any[])];
       arr.splice(index, 1);
       return { ...prev, [field]: arr };
@@ -343,7 +341,6 @@ export default function SettingsClient() {
 
   const moveListItem = (field: keyof WebsiteSettings, index: number, direction: 'up' | 'down') => {
     setSettings((prev) => {
-      // @ts-expect-error dynamic typing
       const arr = [...(prev[field] as any[])];
       if (direction === 'up' && index > 0) {
         [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
@@ -473,7 +470,6 @@ export default function SettingsClient() {
   };
 
   const renderSocialListManager = (title: string, desc: string, field: keyof WebsiteSettings) => {
-    // @ts-expect-error dynamic
     const items = settings[field] as { platform: string; url: string }[];
     return (
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -528,7 +524,6 @@ export default function SettingsClient() {
   };
 
   const renderPaymentListManager = (title: string, desc: string, field: keyof WebsiteSettings) => {
-    // @ts-expect-error dynamic
     const items = settings[field] as { bank_name: string; account_name: string; account_number: string }[];
     return (
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">

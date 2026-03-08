@@ -57,7 +57,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     .from("store_discounts")
     .select("*")
     .eq("is_active", true)
-    .is("code", null)
+    .is("code", null);
     // also could filter by end_date > now(), but let's do simple is_active and we can validate on checkout
 
   return (
