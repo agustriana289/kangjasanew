@@ -318,7 +318,6 @@ export default function SettingsClient() {
   // Generic List Handlers for JSONB columns
   const handleListChange = (field: keyof WebsiteSettings, index: number, key: string, value: string) => {
     setSettings((prev) => {
-      // @ts-expect-error dynamic typing
       const arr = [...(prev[field] as any[])];
       arr[index][key] = value;
       return { ...prev, [field]: arr };
