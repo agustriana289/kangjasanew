@@ -86,7 +86,6 @@ export default async function RootLayout({
           `
         }} />
 
-        {/* Inject Custom Header HTML dari settings dengan aman */}
         {customHeaderHtml && (
           <script
             dangerouslySetInnerHTML={{
