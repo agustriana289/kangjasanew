@@ -59,7 +59,7 @@ const tiers = [
 ];
 
 export default function Pricing({ settings, featuredService, type = "service", activeDiscounts = [] }: { settings?: any, featuredService?: any, type?: "service" | "product", activeDiscounts?: any[] }) {
-  let displayTiers = tiers;
+  let displayTiers: any[] = tiers;
   if (featuredService && featuredService.packages && featuredService.packages.length > 0) {
     displayTiers = featuredService.packages.map((pkg: any, index: number) => {
       const { originalPrice, discountedPrice, appliedDiscount } = calculateDiscountedPrice(pkg.price, activeDiscounts, featuredService.id, type);
