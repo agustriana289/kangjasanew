@@ -15,11 +15,11 @@ interface CheckoutPageProps {
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const params = await searchParams;
-  const type = params.type as string;
+  const type = params.type as "product" | "service";
   const slug = params.slug as string;
   const plan = params.plan as string;
 
-  if (!type || !slug || !plan) {
+  if ((type !== "product" && type !== "service") || !slug || !plan) {
     redirect("/");
   }
 
