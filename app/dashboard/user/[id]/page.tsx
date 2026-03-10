@@ -141,7 +141,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
                  <Settings className="w-4 h-4" /> Edit Profile
                </Link>
              ) : (
-               <Link href="/dashboard/chat" className="bg-white/10 text-white hover:bg-white/20 border border-white/20 text-sm font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition-colors flex items-center gap-2">
+               <Link href={`/dashboard/chat?user=${id}`} className="bg-white/10 text-white hover:bg-white/20 border border-white/20 text-sm font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition-colors flex items-center gap-2">
                  <Mail className="w-4 h-4" /> Message
                </Link>
              )}
