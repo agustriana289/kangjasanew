@@ -241,7 +241,7 @@ export default async function AdminDashboard({
           <h1 className="text-2xl font-bold tracking-tight mb-2">
             Good morning, {name || "Admin"}
           </h1>
-          <p className="text-sm font-medium text-primary">
+          <p className="text-sm font-medium text-slate-200">
             Here&apos;s what&apos;s happening with your agency today.
           </p>
         </div>
@@ -276,7 +276,7 @@ export default async function AdminDashboard({
               key={i}
               className="bg-white/10 backdrop-blur-md rounded-2xl p-5 ring-1 ring-white/20 transition-all hover:bg-white/20"
             >
-              <div className="flex items-center gap-2 mb-3 text-primary">
+              <div className="flex items-center gap-2 mb-3 text-slate-200">
                 <stat.icon className="w-4 h-4" />
                 <h3 className="text-sm font-medium">{stat.title}</h3>
               </div>

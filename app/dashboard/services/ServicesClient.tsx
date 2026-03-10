@@ -639,8 +639,8 @@ export default function ServicesClient() {
                       <td className="px-6 py-4">
                          <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                              {svc.thumbnail ? (
-                                <img src={svc.thumbnail} alt={svc.title} className="w-full h-full object-cover" />
+                              {svc.thumbnail_url ? (
+                                <img src={svc.thumbnail_url} alt={svc.title} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-400">
                                   <Globe className="w-5 h-5" />
@@ -651,7 +651,7 @@ export default function ServicesClient() {
                                <p className="text-sm font-bold text-slate-900 line-clamp-1">{svc.title}</p>
                                <div className="flex items-center gap-2 mt-1">
                                  <span className="text-[10px] font-bold text-primary bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider border border-indigo-100">{svc.category}</span>
-                                 {svc.is_popular && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded uppercase tracking-wider border border-amber-100 flex items-center gap-1"><Star className="w-3 h-3 fill-amber-500" /> Popular</span>}
+                                 {svc.is_featured && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded uppercase tracking-wider border border-amber-100 flex items-center gap-1"><Star className="w-3 h-3 fill-amber-500" /> Featured</span>}
                                </div>
                             </div>
                          </div>
