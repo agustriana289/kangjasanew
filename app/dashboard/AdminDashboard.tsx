@@ -439,7 +439,7 @@ export default async function AdminDashboard({
                 );
               })}
               <Link
-                href="/dashboard/users"
+                href="/dashboard/user"
                 className="h-10 w-10 rounded-full border-[3px] border-white bg-slate-50 border-dashed flex items-center justify-center text-slate-400 hover:z-10 hover:text-primary hover:border-indigo-100 transition-colors cursor-pointer relative"
                 title="View All Users"
               >

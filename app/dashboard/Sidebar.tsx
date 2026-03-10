@@ -26,7 +26,7 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
     { name: "Ads", href: "/dashboard/ads", icon: Tv2 },
     { name: "Pages", href: "/dashboard/pages", icon: LayoutTemplate },
     { name: "FAQ", href: "/dashboard/faq", icon: HelpCircle },
-    { name: "Users", href: "/dashboard/users", icon: Users },
+    { name: "Users", href: "/dashboard/user", icon: Users },
   ];
 
   // User Items
