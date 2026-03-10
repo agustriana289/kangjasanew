@@ -118,21 +118,24 @@ export default function NotificationBell({ role }: { role: "admin" | "user" }) {
 
     // Check user profile for missing info natively
     if (role === "user") {
-      const { data: userData } = await supabase.from("users").select("company, location").eq("id", user.id).single();
-      if (userData) {
-        if (!userData.company || userData.company === "Unknown Company" || !userData.location || userData.location === "Indonesia") {
-          const profileWarning: Notification = {
-            id: "profile-warning-local",
-            user_id: user.id,
-            role: "user",
-            title: "Complete Your Profile",
-            message: "Missing Company/Organization and Location. Please update them.",
-            type: "warning",
-            link: "/dashboard/settings",
-            is_read: false,
-            created_at: new Date().toISOString(),
-          };
-          fetchedNotifs = [profileWarning, ...fetchedNotifs];
+      const isDismissed = typeof window !== "undefined" && localStorage.getItem("profile_warning_dismissed") === "true";
+      if (!isDismissed) {
+        const { data: userData } = await supabase.from("users").select("company, location").eq("id", user.id).single();
+        if (userData) {
+          if (!userData.company || userData.company === "Unknown Company" || !userData.location || userData.location === "Indonesia") {
+            const profileWarning: Notification = {
+              id: "profile-warning-local",
+              user_id: user.id,
+              role: "user",
+              title: "Complete Your Profile",
+              message: "Missing Company/Organization and Location. Please update them.",
+              type: "warning",
+              link: "/dashboard/settings",
+              is_read: false,
+              created_at: new Date().toISOString(),
+            };
+            fetchedNotifs = [profileWarning, ...fetchedNotifs];
+          }
         }
       }
     }
@@ -144,6 +147,9 @@ export default function NotificationBell({ role }: { role: "admin" | "user" }) {
   const markAllRead = async () => {
     setLoading(true);
     try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("profile_warning_dismissed", "true");
+      }
       const { data: { user } } = await supabase.auth.getUser();
       let query = supabase.from("notifications").update({ is_read: true });
 
@@ -162,7 +168,9 @@ export default function NotificationBell({ role }: { role: "admin" | "user" }) {
   };
 
   const markAsRead = async (id: string) => {
-    if (id !== "profile-warning-local") {
+    if (id === "profile-warning-local") {
+      if (typeof window !== "undefined") localStorage.setItem("profile_warning_dismissed", "true");
+    } else {
       await supabase.from("notifications").update({ is_read: true }).eq("id", id);
     }
     setNotifications(notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
@@ -171,7 +179,9 @@ export default function NotificationBell({ role }: { role: "admin" | "user" }) {
 
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (id !== "profile-warning-local") {
+    if (id === "profile-warning-local") {
+      if (typeof window !== "undefined") localStorage.setItem("profile_warning_dismissed", "true");
+    } else {
       await supabase.from("notifications").delete().eq("id", id);
     }
     setNotifications(notifications.filter((n) => n.id !== id));

@@ -141,17 +141,9 @@ export default function ChatNotificationBell({ role = "user", userId }: { role?:
     setIsOpen(false);
     if (!userId) return;
 
-    // Mark all as read for support & workspace
-    // Simplest way: loop and update (since we want to avoid complex multi-table update queries)
-    const supportIds = dbChats.filter((c: ChatNotif) => c.type === 'support').map((c: ChatNotif) => c.id.replace('support_', ''));
-    if (supportIds.length > 0) {
-      await supabase.from('support_ticket_messages').update({ is_read: true }).in('id', supportIds);
-    }
-
-    const wsIds = dbChats.filter((c: ChatNotif) => c.type === 'workspace').map((c: ChatNotif) => c.id.replace('ws_', ''));
-    if (wsIds.length > 0) {
-      await supabase.from('store_messages').update({ is_read: true }).in('id', wsIds);
-    }
+    // Mark ALL unread support & workspace messages as read to prevent pagination from making unread ones reappear
+    await supabase.from('support_ticket_messages').update({ is_read: true }).eq('is_read', false).neq('sender_id', userId);
+    await supabase.from('store_messages').update({ is_read: true }).eq('is_read', false).neq('sender_id', userId);
     
     setDbChats([]);
   };
