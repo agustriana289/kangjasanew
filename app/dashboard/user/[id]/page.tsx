@@ -124,7 +124,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
               )}
             </div>
             
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-primary text-sm font-medium">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-slate-200 text-sm font-medium">
               <div className="flex items-center justify-center sm:justify-start gap-1.5">
                 <Mail className="w-4 h-4 opacity-70" /> {profile.email}
               </div>
