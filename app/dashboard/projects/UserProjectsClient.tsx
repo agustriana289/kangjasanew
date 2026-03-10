@@ -21,6 +21,7 @@ interface Order {
   payment_proof?: string;
   delivery_file?: string;
   selected_package?: any;
+  form_data?: any;
   store_products?: { title: string };
   store_services?: { title: string };
 }
@@ -111,8 +112,30 @@ export default function UserProjectsClient({ userId }: { userId: string }) {
       title.toLowerCase().includes(search.toLowerCase());
   });
 
-  const getProjectTitle = (o: Order) =>
-    o.store_products?.title || o.store_services?.title || "Project";
+  const getFormData = (o: Order) => {
+    try { return typeof o.form_data === "string" ? JSON.parse(o.form_data) : (o.form_data || {}); }
+    catch { return {}; }
+  };
+
+  const getProjectTitle = (o: Order) => {
+    const fd = getFormData(o) || {};
+    const projectNote = fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
+    if (projectNote) return projectNote;
+
+    const baseTitle = o.store_products?.title || o.store_services?.title || "";
+    let pkgName = "";
+    try {
+      if (typeof o.selected_package === "string") {
+        try { pkgName = JSON.parse(o.selected_package)?.name || ""; } catch { pkgName = o.selected_package; }
+      } else {
+        pkgName = o.selected_package?.name || "";
+      }
+    } catch { /* ignore */ }
+    
+    if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
+    if (baseTitle) return baseTitle;
+    return pkgName || "Project";
+  };
 
   const getPkgName = (o: Order) => {
     try {

@@ -118,18 +118,20 @@ export default function TestimonialsClient() {
     const baseTitle = order.store_products?.title || order.store_services?.title || "Project";
     try {
       const fd = typeof order.form_data === "string" ? JSON.parse(order.form_data) : order.form_data;
-      const note = fd?.["Project Title"] || fd?.["Nama Logo"] || fd?.["nama_logo"];
-      return note ? `${baseTitle} — ${note}` : baseTitle;
+      const note = fd?.["project_title"] || fd?.["Project Title"] || fd?.["Nama Logo"] || fd?.["nama_logo"];
+      if (note) return note;
     } catch { return baseTitle; }
+    return baseTitle;
   };
 
   const getOrderTitleSafe = (order: any) => {
     const baseTitle = order.store_products?.title || order.store_services?.title || "Project";
     try {
       const fd = typeof order.form_data === "string" ? JSON.parse(order.form_data) : order.form_data;
-      const note = fd?.["Project Title"] || fd?.["Nama Logo"] || fd?.["nama_logo"];
-      return note ? `${baseTitle} - ${note}` : baseTitle;
+      const note = fd?.["project_title"] || fd?.["Project Title"] || fd?.["Nama Logo"] || fd?.["nama_logo"];
+      if (note) return note;
     } catch { return baseTitle; }
+    return baseTitle;
   };
 
   const avgRating = (t: any) => {

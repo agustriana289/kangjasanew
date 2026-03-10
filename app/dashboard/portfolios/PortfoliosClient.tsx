@@ -40,20 +40,26 @@ export default function PortfoliosClient() {
   };
 
   const getProjectTitle = (o: any) => {
-    const fd = getFormData(o);
-    const baseTitle = o.store_services?.title || o.store_products?.title;
+    const fd = getFormData(o) || {};
+    const projectNote = fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
+    if (projectNote) return projectNote;
+
+    const baseTitle = o.store_services?.title || o.store_products?.title || o.custom_item_name || fd.custom_item_name || "";
+    let pkgName = "";
     try {
-      const pkg = typeof o.selected_package === "string" ? JSON.parse(o.selected_package) : (o.selected_package || {});
-      const pkgName = pkg?.name || "";
-      const projectNote = fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
-      if (baseTitle && projectNote) return `${baseTitle} — ${projectNote}`;
-      if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
-      if (baseTitle) return baseTitle;
-      if (pkgName && projectNote) return `${pkgName} — ${projectNote}`;
-      return pkgName || fd.customer_name || "Project";
-    } catch {
-      return baseTitle || "Project";
-    }
+      if (typeof o.selected_package === "string") {
+        try { pkgName = JSON.parse(o.selected_package)?.name || ""; } catch { pkgName = o.selected_package; }
+      } else {
+        pkgName = o.selected_package?.name || "";
+      }
+    } catch { /* ignore */ }
+    
+    if (!pkgName) pkgName = o.custom_package_name || fd.custom_package_name || "";
+
+    if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
+    if (baseTitle) return baseTitle;
+    if (pkgName) return pkgName;
+    return fd.customer_name || "Project";
   };
 
   const getClientName = (o: any) => {

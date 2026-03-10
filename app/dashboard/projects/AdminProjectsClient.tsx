@@ -93,20 +93,26 @@ export default function AdminProjectsClient() {
   };
 
   const getProjectTitle = (o: any) => {
-    const fd = getFormData(o);
-    const baseTitle = o.store_services?.title || o.store_products?.title;
+    const fd = getFormData(o) || {};
+    const projectNote = fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
+    if (projectNote) return projectNote;
+
+    const baseTitle = o.store_services?.title || o.store_products?.title || o.custom_item_name || fd.custom_item_name || "";
+    let pkgName = "";
     try {
-      const pkg = typeof o.selected_package === "string" ? JSON.parse(o.selected_package) : (o.selected_package || {});
-      const pkgName = pkg?.name || "";
-      const projectNote = fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
-      if (baseTitle && projectNote) return `${baseTitle} — ${projectNote}`;
-      if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
-      if (baseTitle) return baseTitle;
-      if (pkgName && projectNote) return `${pkgName} — ${projectNote}`;
-      return pkgName || fd.customer_name || "Project";
-    } catch {
-      return baseTitle || "Project";
-    }
+      if (typeof o.selected_package === "string") {
+        try { pkgName = JSON.parse(o.selected_package)?.name || ""; } catch { pkgName = o.selected_package; }
+      } else {
+        pkgName = o.selected_package?.name || "";
+      }
+    } catch { /* ignore */ }
+    
+    if (!pkgName) pkgName = o.custom_package_name || fd.custom_package_name || "";
+
+    if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
+    if (baseTitle) return baseTitle;
+    if (pkgName) return pkgName;
+    return fd.customer_name || "Project";
   };
 
   const getClientName = (o: any) => {
@@ -223,7 +229,7 @@ export default function AdminProjectsClient() {
       customer_name: fd.customer_name || fd["Client Name"] || "",
       customer_email: fd.customer_email || "",
       whatsapp: fd.whatsapp || "",
-      project_title: fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "",
+      project_title: fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "",
       service_id: project.service_id || "",
       product_id: project.product_id || "",
       selected_package: typeof project.selected_package === "object" ? JSON.stringify(project.selected_package, null, 2) : (project.selected_package || ""),
@@ -243,6 +249,7 @@ export default function AdminProjectsClient() {
       customer_email: editFormData.customer_email,
       whatsapp: editFormData.whatsapp,
       "Project Title": editFormData.project_title,
+      project_title: editFormData.project_title,
       custom_item_name: editFormData.custom_item_name || undefined,
       custom_package_name: editFormData.custom_package_name || undefined,
     };
@@ -280,7 +287,7 @@ export default function AdminProjectsClient() {
         status: createFormData.status,
         total_amount: parseInt(createFormData.total_amount) || 0,
         payment_method: "Manual",
-        form_data: { "Project Title": createFormData.title, customer_name: createFormData.client_name },
+        form_data: { "Project Title": createFormData.title, project_title: createFormData.title, customer_name: createFormData.client_name },
         user_id: createFormData.user_id || null,
         service_id: createFormData.service_id,
         selected_package: createFormData.selected_package
