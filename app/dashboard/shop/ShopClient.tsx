@@ -46,13 +46,13 @@ const emptyForm: Omit<Product, "id"> = {
   description: "", 
   category: "Logo",
   images: [],  
-  packages: [{ name: "Standard", price: 0, desc: "Standard License", features: [] }], 
-  form_fields: [], 
+  packages: [{ name: "Standar", price: 100000, desc: "Untuk proyek pribadi atau usaha kecil.", features: ["Desain logo original", "File PNG & JPG resolusi tinggi", "Lisensi standar untuk penggunaan pribadi atau usaha kecil"] },{ name: "Extended", price: 250000, desc: "Penggunaan komersial tak terbatas, termasuk penjualan dan distribusi.", features: ["Desain logo original", "File lengkap (AI, SVG, PNG, PDF)", "Lisensi komersial tanpa batas untuk penjualan dan distribusi"] }], 
+  form_fields: [{ label: "Nama Brand", type: "text", required: true }, { label: "Bidang Usaha", type: "text", required: true }, { label: "Konsep / Deskripsi Logo", type: "textarea",required: false }], 
   key_features: [
-    { title: "Copyright Transfer", description: "You’ll receive an official document confirming that all rights are transferred entirely to you.", icon: "Copyright" },
-    { title: "Original Design", description: "Crafted from the ground up by a skilled designer, ensuring a one-of-a-kind concept.", icon: "Paintbrush" },
-    { title: "Free Revisions", description: "Adjustments are included at no extra cost, and you can request them during checkout.", icon: "Pencil" },
-    { title: "Exclusive Logo", description: "This logo belongs solely to you, with the option to register it as a trademark for legal protection.", icon: "Crown" }
+    { title: "Hak Cipta Penuh", description: "Seluruh hak desain sepenuhnya menjadi milik Anda setelah proyek selesai.", icon: "Copyright" },
+    { title: "Desain 100% Original", description: "Dibuat dari nol oleh desainer, bukan template atau generator otomatis.", icon: "Paintbrush" },
+    { title: "Gratis Revisi", description: "Minta penyesuaian desain tanpa biaya tambahan hingga sesuai kebutuhan.", icon: "Pencil" },
+    { title: "Desain Eksklusif", description: "Logo hanya digunakan oleh Anda dan dapat didaftarkan sebagai merek dagang.", icon: "Crown" }
   ],
   is_published: false
 };
