@@ -64,7 +64,7 @@ export default function AnnouncementsClient() {
           .update({ ...form })
           .eq("id", editingId);
         if (error) throw error;
-        showToast("Pengumuman diperbarui", "succes");
+        showToast("Pengumuman diperbarui", "success");
       } else {
         const { error } = await supabase
           .from("site_announcements")
