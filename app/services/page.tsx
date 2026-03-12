@@ -87,27 +87,18 @@ export default async function ServicesPage(props: { searchParams?: Promise<{ [ke
                     </div>
 
                     <div className="flex flex-col flex-1 p-6">
-                      <h2 className="text-xl font-bold text-slate-900 leading-snug mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                        {service.title}
-                      </h2>
+                      <Link
+                          href={`/services/${service.slug}`}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                        >
+                          <h2 className="text-xl font-bold text-slate-900 leading-snug mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                            {service.title}
+                          </h2>
+                        </Link>
                       {service.description && (
                         <p className="text-sm text-slate-500 leading-relaxed line-clamp-3 mb-6 flex-1">
                           {service.description}
                         </p>
-                      )}
-
-                      {service.packages && Array.isArray(service.packages) && service.packages.length > 0 && (
-                        <div className="mb-6 space-y-2">
-                          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Includes:</div>
-                          <ul className="space-y-1.5">
-                            {service.packages[Math.floor(service.packages.length / 2)]?.features?.slice(0, 3).map((feat: string, i: number) => (
-                              <li key={i} className="flex items-start text-sm text-slate-600">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500 mr-2 mt-0.5 shrink-0" />
-                                <span className="line-clamp-1">{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
                       )}
 
                       <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100">
