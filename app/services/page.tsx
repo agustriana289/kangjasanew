@@ -44,21 +44,21 @@ export default async function ServicesPage(props: { searchParams?: Promise<{ [ke
           <FadeIn delay={100} className="max-w-2xl mb-16">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-primary mb-6">
               <BriefcaseBusiness size={14} />
-              <span>Our Services</span>
+              <span>Layanan Kami</span>
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl mb-4">
-              Premium Solutions
+              Solusi Desain Profesional
             </h1>
             <p className="text-lg text-slate-600">
-              Transform your brand with our dedicated design, strategy, and development services carefully crafted for modern businesses.
+              Tingkatkan identitas brand Anda melalui layanan desain, strategi, dan pengembangan yang dirancang khusus untuk kebutuhan bisnis modern.
             </p>
           </FadeIn>
 
           {services.length === 0 ? (
             <FadeIn delay={200} className="text-center py-32 rounded-3xl bg-slate-50 ring-1 ring-slate-100">
               <BriefcaseBusiness className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">No services currently published.</p>
-              <p className="text-slate-400 text-sm mt-1">Check back later or contact us directly.</p>
+              <p className="text-slate-500 font-medium">Saat ini belum ada layanan yang dipublikasikan.</p>
+              <p className="text-slate-400 text-sm mt-1">Silakan periksa kembali nanti atau hubungi kami langsung.</p>
             </FadeIn>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -91,7 +91,7 @@ export default async function ServicesPage(props: { searchParams?: Promise<{ [ke
                           href={`/services/${service.slug}`}
                         >
                           <h2 className="text-xl font-bold text-slate-900 leading-snug mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                            {service.title}
+                            Jasa {service.title}
                           </h2>
                         </Link>
                       {service.description && (
@@ -102,7 +102,7 @@ export default async function ServicesPage(props: { searchParams?: Promise<{ [ke
 
                       <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100">
                         <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-slate-400">Starting at</span>
+                          <span className="text-xs font-semibold text-slate-400">Mulai dari</span>
                           <span className="text-lg font-bold tracking-tight text-slate-900">
                             Rp {Number(service.packages?.[0]?.price || 0).toLocaleString('id-ID')}
                           </span>
