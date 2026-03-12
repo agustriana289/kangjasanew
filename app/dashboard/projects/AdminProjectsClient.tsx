@@ -205,6 +205,7 @@ export default function AdminProjectsClient() {
   };
 
   const deleteOrder = async (id: string) => {
+    const { error } = await supabase.from("store_orders").delete().eq("id", id);
     if (error) return showToast("Gagal menghapus proyek", "error");
     showToast("Proyek dihapus", "success");
     setIsDetailModalOpen(false);
