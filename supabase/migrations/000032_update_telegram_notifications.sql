@@ -15,7 +15,7 @@ BEGIN
     -- Determine which Bot and Channel/Group to use
     IF is_public THEN
         bot_token := '7065106867:AAF3aC4zQpJqaRwc2TSA4jAwuILz0qAMwaI';
-        chat_id := '@kanglogokece';
+        chat_id := '@kangjasakece';
     ELSE
         bot_token := '8044037536:AAHHCyqI29eIobwotKLgGbkDoin7Rp8wBYg';
         chat_id := '3567505382';
@@ -54,7 +54,7 @@ BEGIN
         tg_msg := '🔔 <b>' || NEW.title || '</b>' || CHR(10) || CHR(10) || NEW.message;
         
         IF NEW.link IS NOT NULL THEN
-            tg_msg := tg_msg || CHR(10) || '🔗 Tautan: https://kanglogo.com' || NEW.link;
+            tg_msg := tg_msg || CHR(10) || '🔗 Tautan: https://kangjasa.com' || NEW.link;
         END IF;
 
         PERFORM public.send_telegram_notification(tg_msg, false);
@@ -148,11 +148,11 @@ RETURNS TRIGGER AS $$
 DECLARE
     tg_msg text;
 BEGIN
-    tg_msg := '🌟 <b>Ulasan Bintang 5 Baru untuk Kanglogo!</b>' || CHR(10) || CHR(10) ||
+    tg_msg := '🌟 <b>Ulasan Bintang 5 Baru untuk Kangjasa!</b>' || CHR(10) || CHR(10) ||
               '<i>"' || NEW.comment || '"</i>' || CHR(10) || CHR(10) ||
               '— <b>' || NEW.client_name || '</b>';
 
-    -- Assuming @kanglogokece public announcements (is_public = true)
+    -- Assuming @kangjasakece public announcements (is_public = true)
     PERFORM public.send_telegram_notification(tg_msg, true);
     
     RETURN NEW;

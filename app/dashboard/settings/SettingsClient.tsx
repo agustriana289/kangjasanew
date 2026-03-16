@@ -120,7 +120,7 @@ export default function SettingsClient() {
 
   const [settings, setSettings] = useState<WebsiteSettings>({
     id: 1,
-    website_name: "Kanglogo",
+    website_name: "Kangjasa",
     email: "",
     phone_number: "",
     description: "",
@@ -193,7 +193,7 @@ export default function SettingsClient() {
     header_custom_html: "",
     footer_description: "Karna Logo Jangan Dibuat Biasa Saja",
     footer_social_links: [],
-    footer_copyright: "© 2026 Kanglogo. All rights reserved.",
+    footer_copyright: "© 2026 Kangjasa. All rights reserved.",
     footer_custom_html: "",
     seo_keywords: "",
     seo_author: "",
@@ -513,7 +513,7 @@ export default function SettingsClient() {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-          <button type="button" onClick={() => addListItem(field, { platform: "Instagram", url: "https://instagram.com/kanglogo" })} className="text-xs font-bold uppercase tracking-wider text-primary hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center">
+          <button type="button" onClick={() => addListItem(field, { platform: "Instagram", url: "https://instagram.com/kangjasa" })} className="text-xs font-bold uppercase tracking-wider text-primary hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Profil Sosial
           </button>
         </div>
@@ -1197,7 +1197,7 @@ export default function SettingsClient() {
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight border-b border-slate-100 pb-2">Footer Branding</h2>
                 {renderTextInput("Description (Under Logo)", "footer_description", "Karna Logo Jangan Dibuat Biasa Saja", true)}
-                {renderTextInput("Copyright Notice", "footer_copyright", "© 2026 Kanglogo. All rights reserved.")}
+                {renderTextInput("Copyright Notice", "footer_copyright", "© 2026 Kangjasa. All rights reserved.")}
              </div>
 
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
@@ -1241,7 +1241,7 @@ export default function SettingsClient() {
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight border-b border-slate-100 pb-2">Basic Meta Settings</h2>
                 {renderTextInput("Keywords (Comma Separated)", "seo_keywords", "logo maker, vector design, branding", true)}
-                {renderTextInput("Author / Creator", "seo_author", "Kanglogo Agency")}
+                {renderTextInput("Author / Creator", "seo_author", "Kangjasa Agency")}
                 
                 <div>
                   <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-700">Robots Directive</label>
@@ -1313,7 +1313,7 @@ export default function SettingsClient() {
                 </div>
                 {renderTextInput("Twitter Title", "seo_twitter_title", "")}
                 {renderTextInput("Twitter Description", "seo_twitter_description", "", true)}
-                {renderTextInput("Twitter Profile Handle (@)", "seo_twitter_handle", "@kanglogo")}
+                {renderTextInput("Twitter Profile Handle (@)", "seo_twitter_handle", "@kangjasa")}
              </div>
 
              <div className="pt-6 border-t border-slate-100 flex justify-end">

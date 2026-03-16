@@ -301,7 +301,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
                   </span>
                   <div className="flex flex-col gap-1 items-start">
                     <p className="text-sm font-medium text-slate-600 leading-snug">
-                      Akun dibuat di Kanglogo Dashboard
+                      Akun dibuat di Kangjasa Dashboard
                     </p>
                     <time className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{joinDate}</time>
                   </div>

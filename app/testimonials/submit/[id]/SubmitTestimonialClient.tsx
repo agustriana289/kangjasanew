@@ -131,7 +131,7 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
       </button>
       
       <p className="text-center text-[10px] font-medium text-slate-400 mt-5">
-        By clicking submit, you agree to provide an honest testimonial to be displayed on Kanglogo.
+        By clicking submit, you agree to provide an honest testimonial to be displayed on Kangjasa.
       </p>
     </form>
   );

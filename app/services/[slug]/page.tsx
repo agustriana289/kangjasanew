@@ -267,7 +267,7 @@ export default async function ServiceDetail({ params }: ServiceProps) {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-6">
                 <a 
-                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi, saya ingin berkonsultasi mengenai layanan ${service.title} di website kanglogo.com.`)}`}
+                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hi, saya ingin berkonsultasi mengenai layanan ${service.title} di website kangjasa.com.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex items-center justify-center gap-2 rounded-full bg-indigo-500 px-8 py-4 text-base font-semibold text-white shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-1 w-full sm:w-auto"

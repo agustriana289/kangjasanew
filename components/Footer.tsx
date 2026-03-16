@@ -79,7 +79,7 @@ export default async function Footer() {
         
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 text-sm sm:flex-row">
           <p>
-            {settings?.footer_copyright || `© ${new Date().getFullYear()} Kanglogo. Hak cipta dilindungi.`}
+            {settings?.footer_copyright || `© ${new Date().getFullYear()} Kangjasa. Hak cipta dilindungi.`}
           </p>
           <div className="flex gap-6">
             {bottomLinks.map((link, idx) => (

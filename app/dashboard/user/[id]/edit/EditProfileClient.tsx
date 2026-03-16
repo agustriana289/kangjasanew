@@ -143,7 +143,7 @@ export default function EditProfileClient({ profile }: { profile: any }) {
                   type="text" 
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  placeholder="contoh: Kanglogo Studio"
+                  placeholder="contoh: Kangjasa Studio"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                 />
               </div>

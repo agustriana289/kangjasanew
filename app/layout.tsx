@@ -29,7 +29,7 @@ async function getSettings() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const title = settings?.website_name || "Kanglogo";
+  const title = settings?.website_name || "Kangjasa";
   const desc = settings?.description || settings?.seo_og_description || "Premium Logo Design Services";
   
   return {

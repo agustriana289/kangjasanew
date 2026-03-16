@@ -120,7 +120,7 @@ export default async function SubmitTestimonialPage({ params }: { params: { id: 
     fd = typeof order.form_data === 'string' ? JSON.parse(order.form_data) : (order.form_data || {});
   } catch (e) {}
   
-  const clientName = fd.customer_name || fd["Client Name"] || "Kanglogo Client";
+  const clientName = fd.customer_name || fd["Client Name"] || "Kangjasa Client";
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans py-12 px-4 sm:px-6 lg:px-8">

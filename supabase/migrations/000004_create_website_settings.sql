@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS public.settings (
   id integer primary key default 1,
   
   -- Tab 1: Website Settings
-  website_name text default 'Kanglogo',
-  email text default 'admin@kanglogo.com',
+  website_name text default 'Kangjasa',
+  email text default 'admin@kangjasa.com',
   phone_number text default '+6280000000',
   description text,
   is_maintenance boolean default false,
@@ -51,5 +51,5 @@ CREATE POLICY "Only admins can insert settings" ON public.settings
 
 -- Insert the default starting row
 INSERT INTO public.settings (id, website_name) 
-VALUES (1, 'Kanglogo') 
+VALUES (1, 'Kangjasa') 
 ON CONFLICT (id) DO NOTHING;

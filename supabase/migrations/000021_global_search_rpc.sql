@@ -1,4 +1,4 @@
--- Global Search Function for Kanglogo (Final Fix - No Assumptions)
+-- Global Search Function for Kangjasa (Final Fix - No Assumptions)
 -- Drop function first to reset signature (handling return type changes)
 DROP FUNCTION IF EXISTS public.global_search(text, boolean, uuid);
 

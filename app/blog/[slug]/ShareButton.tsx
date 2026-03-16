@@ -11,7 +11,7 @@ interface ShareButtonsProps {
 export default function ShareButtons({ title, slug }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
 
-  const getUrl = () => (typeof window !== "undefined" ? window.location.href : `https://kanglogo.com/blog/${slug}`);
+  const getUrl = () => (typeof window !== "undefined" ? window.location.href : `https://kangjasa.com/blog/${slug}`);
 
   const handleShare = (platform: string) => {
     const url = getUrl();
