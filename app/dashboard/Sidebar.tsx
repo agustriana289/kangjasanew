@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, FolderKanban, ShoppingBag,
   Ticket, Tags, Megaphone,
-  Users, LayoutTemplate, BriefcaseBusiness, BookOpen, Tv2, Star, Images, HelpCircle, MessageSquare
+  Users, LayoutTemplate, BriefcaseBusiness, BookOpen, Tv2, Star, Images, HelpCircle, MessageSquare, PercentCircle
 } from "lucide-react";
 
 export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
@@ -22,6 +22,7 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
     { name: "Portofolio", href: "/dashboard/portfolios", icon: Images },
     { name: "Testimoni", href: "/dashboard/testimonials", icon: Star },
     { name: "Blog", href: "/dashboard/blogs", icon: BookOpen },
+    { name: "Promo", href: "/dashboard/promos", icon: PercentCircle },
     { name: "Iklan", href: "/dashboard/ads", icon: Tv2 },
     { name: "Halaman", href: "/dashboard/pages", icon: LayoutTemplate },
     { name: "FAQ", href: "/dashboard/faq", icon: HelpCircle },
