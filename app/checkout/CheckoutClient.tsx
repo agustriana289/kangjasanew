@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
-import { CreditCard, ShieldCheck, CheckCircle2, Package, Mail, Phone, User, Ticket, Loader2, X, Tag, LogIn } from "lucide-react";
+import { CreditCard, ShieldCheck, CheckCircle2, Package, Mail, Phone, User, Ticket, Loader2, X, Tag, LogIn, MessageCircle } from "lucide-react";
 import FadeIn from "@/components/landing/FadeIn";
 import { calculateDiscountedPrice, Discount } from "@/utils/discounts";
-import Link from "next/link";
 
 declare global {
   interface Window {
@@ -49,6 +48,7 @@ export default function CheckoutClient({ user, item, type, selectedPlan, initial
 
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [checkoutMode, setCheckoutMode] = useState<"account" | "whatsapp">("account");
 
   useEffect(() => {
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
@@ -325,50 +325,83 @@ export default function CheckoutClient({ user, item, type, selectedPlan, initial
               </div>
             ) : (
               <div className="mb-6 space-y-4">
-                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3">
-                  <LogIn size={18} className="text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">Checkout sebagai tamu</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Tidak perlu akun. Cukup isi nama dan no. HP Anda.</p>
-                    <Link href={`/login?next=${encodeURIComponent(`/checkout?type=${type}&slug=${item.id}&plan=${encodeURIComponent(selectedPlan.name)}`)}`} className="text-xs font-bold text-primary hover:underline mt-1 inline-block">
-                      Atau masuk dengan akun →
-                    </Link>
-                  </div>
+                <div className="flex rounded-xl overflow-hidden ring-1 ring-slate-200">
+                  <button
+                    onClick={() => setCheckoutMode("account")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${
+                      checkoutMode === "account"
+                        ? "bg-primary text-white"
+                        : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                    }`}
+                  >
+                    <LogIn size={15} /> Masuk / Daftar
+                  </button>
+                  <button
+                    onClick={() => setCheckoutMode("whatsapp")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors ${
+                      checkoutMode === "whatsapp"
+                        ? "bg-primary text-white"
+                        : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                    }`}
+                  >
+                    <MessageCircle size={15} /> Pakai WhatsApp
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                    Nama Lengkap <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={guestName}
-                      onChange={e => setGuestName(e.target.value)}
-                      placeholder="Contoh: Budi Santoso"
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-secondary pl-10 pr-4 py-3 transition-all outline-none shadow-sm"
-                    />
+                {checkoutMode === "account" ? (
+                  <div className="bg-slate-50 rounded-2xl p-5 ring-1 ring-slate-200 text-center space-y-3">
+                    <p className="text-sm text-slate-600">Masuk atau buat akun untuk melanjutkan checkout dan memantau status pesanan.</p>
+                    <button
+                      onClick={() => {
+                        const supabase = createClient();
+                        const next = `/checkout?type=${type}&slug=${item.id}&plan=${encodeURIComponent(selectedPlan.name)}`;
+                        supabase.auth.signInWithOAuth({
+                          provider: "google",
+                          options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+                        });
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 px-6 text-sm font-bold text-white hover:bg-secondary transition-colors shadow-sm"
+                    >
+                      <LogIn size={16} /> Masuk dengan Google
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                        Nama Lengkap <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={guestName}
+                          onChange={e => setGuestName(e.target.value)}
+                          placeholder="Contoh: Budi Santoso"
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-secondary pl-10 pr-4 py-3 transition-all outline-none shadow-sm"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                    Nomor HP (WhatsApp) <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="tel"
-                      value={guestPhone}
-                      onChange={e => setGuestPhone(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Contoh: 08123456789"
-                      maxLength={15}
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-secondary pl-10 pr-4 py-3 transition-all outline-none shadow-sm"
-                    />
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                        Nomor WhatsApp <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="tel"
+                          value={guestPhone}
+                          onChange={e => setGuestPhone(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Contoh: 08123456789"
+                          maxLength={15}
+                          className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-secondary pl-10 pr-4 py-3 transition-all outline-none shadow-sm"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1.5">Kami akan menghubungi Anda via WhatsApp setelah pembayaran.</p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5">Kami akan menghubungi Anda via WhatsApp setelah pembayaran.</p>
-                </div>
+                )}
               </div>
             )}
           </div>
