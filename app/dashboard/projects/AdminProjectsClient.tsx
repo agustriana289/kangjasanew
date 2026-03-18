@@ -228,9 +228,9 @@ export default function AdminProjectsClient() {
       total_amount: project.total_amount,
       payment_method: project.payment_method || "",
       progress: project.progress ?? 0,
-      customer_name: fd.customer_name || fd["Client Name"] || "",
-      customer_email: fd.customer_email || "",
-      whatsapp: fd.whatsapp || "",
+      customer_name: getClientName(project),
+      customer_email: getClientEmail(project) === "(Guest via WhatsApp)" ? "" : (getClientEmail(project) || ""),
+      whatsapp: getClientWhatsapp(project) || "",
       project_title: fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "",
       service_id: project.service_id || "",
       product_id: project.product_id || "",
@@ -258,17 +258,25 @@ export default function AdminProjectsClient() {
     const resolvedPackage = editFormData.service_id || editFormData.product_id
       ? editFormData.selected_package
       : editFormData.custom_package_name || editFormData.selected_package || null;
+    
+    const updatePayload: any = {
+      status: editFormData.status,
+      total_amount: editFormData.total_amount,
+      payment_method: editFormData.payment_method,
+      progress: editFormData.progress,
+      form_data: updatedFd,
+      service_id: editFormData.service_id || null,
+      product_id: editFormData.product_id || null,
+      selected_package: resolvedPackage,
+    };
+
+    if (selectedProject?.guest_name || selectedProject?.guest_phone) {
+      updatePayload.guest_name = editFormData.customer_name;
+      updatePayload.guest_phone = editFormData.whatsapp;
+    }
+
     const { error } = await supabase.from("store_orders")
-      .update({
-        status: editFormData.status,
-        total_amount: editFormData.total_amount,
-        payment_method: editFormData.payment_method,
-        progress: editFormData.progress,
-        form_data: updatedFd,
-        service_id: editFormData.service_id || null,
-        product_id: editFormData.product_id || null,
-        selected_package: resolvedPackage,
-      })
+      .update(updatePayload)
       .eq("id", selectedProject.id);
     if (error) { showToast(error.message, "error"); }
     else { showToast("Proyek diperbarui", "success"); setIsEditModalOpen(false); fetchOrders(); }
@@ -487,9 +495,18 @@ export default function AdminProjectsClient() {
                         <p className="text-[10px] text-slate-400 font-bold uppercase">{o.payment_method || "—"}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg shadow-sm border ${statusColors[o.status] || "bg-slate-50 text-slate-500 border-slate-100"}`}>
-                          {o.status.replace("_", " ").replace("pending", "menunggu").replace("waiting payment", "menunggu pembayaran").replace("paid", "dibayar").replace("processing", "diproses").replace("completed", "selesai").replace("cancelled", "dibatalkan")}
-                        </span>
+                        <select 
+                          value={o.status}
+                          onChange={(e) => updateStatus(o.id, e.target.value)}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg shadow-sm border appearance-none outline-none cursor-pointer focus:ring-2 focus:ring-primary/20 ${statusColors[o.status] || "bg-slate-50 text-slate-500 border-slate-100"}`}
+                        >
+                          <option value="pending">Menunggu</option>
+                          <option value="waiting_payment">Menunggu Pembayaran</option>
+                          <option value="paid">Dibayar</option>
+                          <option value="processing">Diproses</option>
+                          <option value="completed">Selesai</option>
+                          <option value="cancelled">Dibatalkan</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-1.5">
