@@ -212,7 +212,9 @@ export default function CheckoutClient({ user, item, type, selectedPlan, initial
 
     } catch (error: unknown) {
       console.error("[Checkout Error]", error);
-      showToast(error instanceof Error ? error.message : "Terjadi kesalahan.", "error");
+      const errObj = error as { message?: string };
+      const errorMessage = errObj?.message || (error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui.");
+      showToast(errorMessage, "error");
       setLoading(false);
     }
   };
