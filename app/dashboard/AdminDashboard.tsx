@@ -105,7 +105,6 @@ export default async function AdminDashboard({
   const { data: portfolios } = await supabase
     .from("store_portfolios")
     .select("id, title, images, slug")
-    .eq("is_published", true)
     .order("created_at", { ascending: false })
     .limit(4);
 
