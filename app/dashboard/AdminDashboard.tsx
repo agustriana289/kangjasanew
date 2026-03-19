@@ -1,4 +1,4 @@
-import { Wallet, TrendingUp, Users, Ticket, Clock, Box } from "lucide-react";
+import { Wallet, Users, Ticket, Clock, Box, Wifi } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/admin/Avatar";
 import { createClient } from "@/utils/supabase/server";
@@ -14,13 +14,7 @@ export default async function AdminDashboard({
 }) {
   const supabase = await createClient();
 
-  // Fetch count of all non-admin clients
-  const { count: totalClientsCount } = await supabase
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .eq("is_admin", false);
 
-  // Fetch recent 5 clients
   const { data: recentClients } = await supabase
     .from("users")
     .select("id, full_name, email, avatar_url")
@@ -74,37 +68,28 @@ export default async function AdminDashboard({
     0,
   );
 
-  // Calculate Best Seller
-  const serviceCounts: Record<string, number> = {};
-  const productCounts: Record<string, number> = {};
-  let bestSellerName = "Tidak ada";
-  let bestSellerCount = 0;
-
-  orders.forEach((o) => {
-    if (o.service_id) {
-      serviceCounts[o.service_id] = (serviceCounts[o.service_id] || 0) + 1;
-      if (serviceCounts[o.service_id] > bestSellerCount) {
-        bestSellerCount = serviceCounts[o.service_id];
-        bestSellerName = (o.store_services as any)?.title || "Layanan Agensi";
-      }
-    }
-    if (o.product_id) {
-      productCounts[o.product_id] = (productCounts[o.product_id] || 0) + 1;
-      if (productCounts[o.product_id] > bestSellerCount) {
-        bestSellerCount = productCounts[o.product_id];
-        bestSellerName = (o.store_products as any)?.title || "Item Toko";
-      }
-    }
-  });
   const recentOrdersList = orders.slice(0, 5);
 
-  // Fetch open tickets count
-  const { data: latestTickets, count: openTicketsCount } = await supabase
+  const { count: openTicketsCount, data: latestTickets } = await supabase
     .from("support_tickets")
     .select("subject, users(full_name, email)", { count: "exact" })
     .eq("status", "open")
     .order("created_at", { ascending: false })
     .limit(1);
+
+  const fiveMinutesAgo = new Date(new Date().getTime() - 5 * 60 * 1000).toISOString();
+  const { count: onlineUsersCount } = await supabase
+    .from("user_presence")
+    .select("*", { count: "exact", head: true })
+    .gte("last_seen", fiveMinutesAgo);
+
+  const uniqueBuyerIds = new Set(
+    orders
+      .filter((o) => o.user_id)
+      .map((o) => o.user_id)
+  );
+  const guestOrders = orders.filter((o) => !o.user_id).length;
+  const totalPelanggan = uniqueBuyerIds.size + guestOrders;
 
   let latestTicketText = "Tidak ada tiket terbuka";
   if (latestTickets && latestTickets.length > 0) {
@@ -116,10 +101,6 @@ export default async function AdminDashboard({
     latestTicketText = `${t.subject} dari ${authorName}`;
   }
 
-  const latestClientText =
-    recentClients && recentClients.length > 0
-      ? `Klien Baru: ${recentClients[0].full_name || recentClients[0].email.split("@")[0]}`
-      : "Belum ada klien";
 
   const { data: portfolios } = await supabase
     .from("store_portfolios")
@@ -250,22 +231,22 @@ export default async function AdminDashboard({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {[
             {
-              title: "Total Pendapatan",
+              title: "Total Penghasilan",
               value: `Rp ${totalRevenue.toLocaleString("id-ID")}`,
               tag: `↗ ${completedOrders.length} pesanan`,
               icon: Wallet,
             },
             {
-              title: "Terlaris",
-              value: bestSellerName,
-              tag: `↗ ${bestSellerCount} Terjual`,
-              icon: TrendingUp,
+              title: "Jumlah Pelanggan",
+              value: totalPelanggan.toString(),
+              tag: `↗ ${uniqueBuyerIds.size} akun, ${guestOrders} tamu`,
+              icon: Users,
             },
             {
-              title: "Total Klien",
-              value: totalClientsCount?.toString() || "0",
-              tag: latestClientText,
-              icon: Users,
+              title: "Pengguna Online",
+              value: (onlineUsersCount ?? 0).toString(),
+              tag: "↗ dalam 5 menit terakhir",
+              icon: Wifi,
             },
             {
               title: "Tiket Dukungan",
@@ -419,7 +400,7 @@ export default async function AdminDashboard({
                 Klien Terbaru
               </h3>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Total {totalClientsCount || 0}
+                Total {recentClients?.length || 0}+
               </span>
             </div>
             <div className="flex -space-x-3">

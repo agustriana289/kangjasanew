@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ToastProvider";
+import PresenceTracker from "@/components/PresenceTracker";
 import { createClient } from "@/utils/supabase/server";
 
 const geistSans = Geist({
@@ -107,6 +108,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ToastProvider>
+          <PresenceTracker />
            {children}
         </ToastProvider>
       </body>
