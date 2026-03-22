@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Edit, Trash2, Image as ImageIcon, Loader2, X, Eye, EyeOff, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Plus, Search, Edit, Trash2, Image as ImageIcon, Loader2, X, Eye, EyeOff, Star, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import ImageUploader from "@/components/admin/ImageUploader";
@@ -33,6 +33,10 @@ export default function PortfoliosClient() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [tagInput, setTagInput] = useState("");
   const [page, setPage] = useState(1);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const getFormData = (o: any) => {
     try { return typeof o.form_data === "string" ? JSON.parse(o.form_data) : (o.form_data || {}); }
@@ -68,6 +72,29 @@ export default function PortfoliosClient() {
     if (o.guest_name) return o.guest_name;
     const fd = getFormData(o);
     return fd.customer_name || fd["Client Name"] || "Unknown Client";
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setActiveCategoryId(null);
+        setCategoryDraft("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const updateCategory = async (id: string, category: string) => {
+    const trimmed = category.trim();
+    if (!trimmed) return;
+    setSavingCategory(true);
+    const { error } = await supabase.from("store_portfolios").update({ category: trimmed }).eq("id", id);
+    if (error) showToast(error.message, "error");
+    else { fetchPortfolios(); showToast("Kategori diperbarui", "success"); }
+    setActiveCategoryId(null);
+    setCategoryDraft("");
+    setSavingCategory(false);
   };
 
   const fetchPortfolios = useCallback(async () => {
@@ -232,7 +259,48 @@ export default function PortfoliosClient() {
               </div>
               <div className="p-4 flex-1 flex flex-col">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{p.category || "Tanpa Kategori"}</p>
+                  <div className="relative" ref={activeCategoryId === p.id ? categoryDropdownRef : undefined}>
+                    <button
+                      onClick={() => { setActiveCategoryId(p.id); setCategoryDraft(p.category || ""); }}
+                      className="flex items-center gap-1 text-[10px] font-bold text-primary uppercase tracking-wider hover:text-secondary transition-colors group/cat"
+                    >
+                      {savingCategory && activeCategoryId === p.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <>{p.category || "Tanpa Kategori"}<ChevronDown className="w-2.5 h-2.5 opacity-40 group-hover/cat:opacity-100 transition-opacity" /></>}
+                    </button>
+                    {activeCategoryId === p.id && (
+                      <div className="absolute left-0 top-full mt-1.5 z-30 bg-white rounded-xl shadow-xl ring-1 ring-slate-200 w-48 overflow-hidden">
+                        <div className="max-h-40 overflow-y-auto">
+                          {Array.from(new Set(portfolios.map(x => x.category).filter(Boolean))).sort().map((cat) => (
+                            <button
+                              key={cat as string}
+                              onClick={() => updateCategory(p.id, cat as string)}
+                              className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${
+                                p.category === cat ? "bg-indigo-50 text-primary" : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {cat as string}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="border-t border-slate-100 p-2 flex gap-1">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={categoryDraft}
+                            onChange={e => setCategoryDraft(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); updateCategory(p.id, categoryDraft); } e.stopPropagation(); }}
+                            placeholder="Kategori baru..."
+                            className="flex-1 text-xs font-medium bg-slate-50 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-primary/20 min-w-0"
+                          />
+                          <button
+                            onClick={() => updateCategory(p.id, categoryDraft)}
+                            className="px-2 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-secondary transition-colors shrink-0"
+                          >OK</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {p.store_orders?.order_number && (
                     <span className="text-[9px] font-bold bg-indigo-50 text-primary px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
                       ORD-{p.store_orders.order_number.toString().padStart(4, '0')}
