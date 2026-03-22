@@ -2,37 +2,65 @@ import { createClient } from "@/utils/supabase/server";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FadeIn from "@/components/landing/FadeIn";
-import { BriefcaseBusiness, Eye } from "lucide-react";
-
+import CategoryFilter from "@/components/landing/CategoryFilter";
 import Pagination from "@/components/landing/Pagination";
+import { BriefcaseBusiness, Eye } from "lucide-react";
 
 export const revalidate = 60;
 
-async function getPortfolios(page: number, limit: number) {
+async function getCategories() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("store_portfolios")
+    .select("category")
+    .eq("is_published", true)
+    .not("category", "is", null);
+
+  const unique = Array.from(
+    new Set((data || []).map((r: any) => r.category?.trim()).filter(Boolean))
+  ) as string[];
+  return unique.sort();
+}
+
+async function getPortfolios(page: number, limit: number, category: string) {
   const supabase = await createClient();
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  const { data, count } = await supabase
+  let query = supabase
     .from("store_portfolios")
     .select("id, title, description, category, images, tags", { count: "exact" })
     .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .range(from, to);
-    
+    .order("created_at", { ascending: false });
+
+  if (category) {
+    query = query.eq("category", category);
+  }
+
+  const { data, count } = await query.range(from, to);
   return { data: data || [], total: count || 0 };
 }
 
-export default async function PortfoliosPage(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default async function PortfoliosPage(props: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const searchParams = await props.searchParams;
   const pageStr = searchParams?.page;
   const page = typeof pageStr === "string" ? parseInt(pageStr, 10) : 1;
+  const categoryParam = typeof searchParams?.category === "string" ? searchParams.category : "";
   const limit = 9;
 
   const supabase = await createClient();
-  const { data: portfolios, total } = await getPortfolios(page, limit);
+  const [{ data: portfolios, total }, categories] = await Promise.all([
+    getPortfolios(page, limit, categoryParam),
+    getCategories(),
+  ]);
   const totalPages = Math.ceil(total / limit);
-  const { data: settingsData } = await supabase.from("settings").select("portfolio_badge, portfolio_title, portfolio_description").eq("id", 1).single();
+  const { data: settingsData } = await supabase
+    .from("settings")
+    .select("portfolio_badge, portfolio_title, portfolio_description")
+    .eq("id", 1)
+    .single();
   const settings = settingsData || {};
 
   return (
@@ -41,23 +69,38 @@ export default async function PortfoliosPage(props: { searchParams?: Promise<{ [
 
       <div className="pt-8 pb-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <FadeIn delay={100} className="max-w-2xl mb-16">
+          <FadeIn delay={100} className="max-w-2xl mb-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-primary mb-6">
               <BriefcaseBusiness size={14} />
               <span>{(settings as any).portfolio_badge || "Karya Kami"}</span>
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl mb-4">
-              {(settings as any).portfolio_title || "Portofolio Kreatif"}
+              {categoryParam
+                ? categoryParam
+                : (settings as any).portfolio_title || "Portofolio Kreatif"}
             </h1>
             <p className="text-lg text-slate-600">
-              {(settings as any).portfolio_description || "Temukan proyek terbaru dan solusi desain sukses yang telah kami kerjakan untuk klien kami."}
+              {categoryParam
+                ? `Menampilkan semua karya dalam kategori "${categoryParam}".`
+                : (settings as any).portfolio_description ||
+                  "Temukan proyek terbaru dan solusi desain sukses yang telah kami kerjakan untuk klien kami."}
             </p>
           </FadeIn>
+
+          {categories.length > 0 && (
+            <FadeIn delay={150}>
+              <CategoryFilter categories={categories} activeCategory={categoryParam} />
+            </FadeIn>
+          )}
 
           {portfolios.length === 0 ? (
             <FadeIn delay={200} className="text-center py-32 rounded-3xl bg-slate-50 ring-1 ring-slate-100">
               <BriefcaseBusiness className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">Belum ada portofolio yang dipublikasikan.</p>
+              <p className="text-slate-500 font-medium">
+                {categoryParam
+                  ? `Belum ada portofolio dalam kategori "${categoryParam}".`
+                  : "Belum ada portofolio yang dipublikasikan."}
+              </p>
               <p className="text-slate-400 text-sm mt-1">Kunjungi kembali nanti untuk pembaruan terbaru kami.</p>
             </FadeIn>
           ) : (
