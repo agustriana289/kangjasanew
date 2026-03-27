@@ -159,7 +159,18 @@ export default function ServicesClient() {
     pkgs[index] = { ...pkgs[index], [field]: value };
     setForm({ ...form, packages: pkgs });
   };
-  const addPackage = () => setForm({ ...form, packages: [...form.packages, { name: "Paket Baru", price: 0, description: "", features: [] }] });
+  const PACKAGE_NAME_TIERS: string[][] = [
+    ["Basic", "Starter", "Essential", "Lite", "Economy"],
+    ["Medium", "Standard", "Regular", "Classic", "Plus"],
+    ["Pro", "Advanced", "Premium", "Elite", "Professional"],
+    ["Enterprise", "Ultimate", "Platinum", "Business", "Supreme"],
+  ];
+  const getTierOptions = (index: number) => index < PACKAGE_NAME_TIERS.length ? PACKAGE_NAME_TIERS[index] : ["Custom", "Exclusive", "Bespoke", "Tailored", "Special"];
+  const addPackage = () => {
+    const nextIndex = form.packages.length;
+    const defaultName = getTierOptions(nextIndex)[0];
+    setForm({ ...form, packages: [...form.packages, { name: defaultName, price: 0, description: "", features: [] }] });
+  };
   const removePackage = (index: number) => setForm({ ...form, packages: form.packages.filter((_, i) => i !== index) });
   
   const addFeature = (pkgIndex: number) => {
@@ -290,7 +301,17 @@ export default function ServicesClient() {
                       <div className="grid grid-cols-2 gap-4 mb-4 pr-10">
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Nama Paket</label>
-                          <input value={pkg.name} onChange={e => updatePackage(pIdx, 'name', e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold" />
+                          <select
+                            value={getTierOptions(pIdx).includes(pkg.name) ? pkg.name : "__custom__"}
+                            onChange={e => { if (e.target.value !== "__custom__") updatePackage(pIdx, 'name', e.target.value); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold mb-1"
+                          >
+                            {getTierOptions(pIdx).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            <option value="__custom__">Kustom...</option>
+                          </select>
+                          {!getTierOptions(pIdx).includes(pkg.name) && (
+                            <input value={pkg.name} onChange={e => updatePackage(pIdx, 'name', e.target.value)} placeholder="Nama kustom..." className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold" />
+                          )}
                         </div>
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Harga (IDR)</label>
