@@ -160,10 +160,10 @@ export default function ServicesClient() {
     setForm({ ...form, packages: pkgs });
   };
   const PACKAGE_NAME_TIERS: string[][] = [
-    ["Basic", "Starter", "Essential", "Lite", "Economy"],
-    ["Medium", "Standard", "Regular", "Classic", "Plus"],
-    ["Pro", "Advanced", "Premium", "Elite", "Professional"],
-    ["Enterprise", "Ultimate", "Platinum", "Business", "Supreme"],
+    ["Basic", "Starter", "Lite", "Core", "Bronze"],
+    ["Standard", "Growth", "Plus", "Pro", "Silver"],
+    ["Advanced", "Professional", "Premium", "Expert", "Gold"],
+    ["Enterprise", "Scale", "Ultimate", "Elite", "Platinum"],
   ];
   const getTierOptions = (index: number) => index < PACKAGE_NAME_TIERS.length ? PACKAGE_NAME_TIERS[index] : ["Custom", "Exclusive", "Bespoke", "Tailored", "Special"];
   const addPackage = () => {
