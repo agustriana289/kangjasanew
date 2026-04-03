@@ -374,7 +374,7 @@ export default function AdminProjectsClient() {
   let totalOrderAmount = 0;
 
   completedStats.forEach(o => {
-    const amt = Number(o.total_amount || 0);
+    const amt = Number(o.total_amount || 0) + (o.charges?.reduce((acc: any, c: any) => acc + Number(c.amount || 0), 0) || 0);
     totalOrderAmount += amt;
 
     const d = new Date(o.created_at);

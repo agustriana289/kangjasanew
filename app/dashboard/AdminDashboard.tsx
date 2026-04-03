@@ -46,7 +46,8 @@ export default async function AdminDashboard({
       service_id,
       product_id,
       store_services ( title, category ),
-      store_products ( title, category )
+      store_products ( title, category ),
+      order_additional_charges ( amount )
     `,
     )
     .order("created_at", { ascending: false });
@@ -64,7 +65,11 @@ export default async function AdminDashboard({
     ["paid", "processing", "completed"].includes(o.status),
   );
   const totalRevenue = completedOrders.reduce(
-    (sum, order) => sum + Number(order.total_amount || 0),
+    (sum, order) => {
+      const base = Number(order.total_amount || 0);
+      const charges = order.order_additional_charges?.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0) || 0;
+      return sum + base + charges;
+    },
     0,
   );
 
@@ -154,7 +159,11 @@ export default async function AdminDashboard({
         const d = new Date(o.created_at);
         return d.getFullYear() === displayYear && d.getMonth() === month;
       })
-      .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+      .reduce((sum, o) => {
+        const base = Number(o.total_amount || 0);
+        const charges = o.order_additional_charges?.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0) || 0;
+        return sum + base + charges;
+      }, 0);
     return {
       month: new Date(displayYear, month).toLocaleString("id-ID", {
         month: "short",
@@ -652,7 +661,7 @@ export default async function AdminDashboard({
                               </td>
                               <td className="p-4 whitespace-nowrap text-sm font-bold text-slate-900 text-left">
                                 Rp{" "}
-                                {Number(order.total_amount || 0).toLocaleString(
+                                {(Number(order.total_amount || 0) + (order.order_additional_charges?.reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0) || 0)).toLocaleString(
                                   "id-ID",
                                 )}
                               </td>

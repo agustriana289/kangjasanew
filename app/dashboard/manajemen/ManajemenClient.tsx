@@ -534,7 +534,7 @@ export default function ManajemenClient() {
               onChangePackage={newPkg => updateServiceAndPackage(id, serviceId, newPkg, o)} />
           </td>
           <td className="px-3 py-2">
-            <InlineNumber value={Number(o.total_amount || 0)} onChange={v => updateField(id, "total_amount", v)} />
+            <InlineNumber value={Number(o.total_amount || 0) + (allCharges[id as string] || 0)} onChange={v => updateField(id, "total_amount", Math.max(0, v - (allCharges[id as string] || 0)))} />
           </td>
           <td className="px-3 py-2">
             <InlineNumber value={Number(o.discount_amount || 0)} onChange={v => updateField(id, "discount_amount", v)} />
