@@ -53,11 +53,8 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
         aria-label="Sidebar"
       >
         <div className="relative flex-1 flex flex-col min-h-0 border-r border-slate-200 bg-white pt-0">
-          <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto px-4">
+          <div className="flex-1 flex flex-col pt-6 pb-4 overflow-hidden px-4">
             <div className="flex-1 bg-white space-y-4">
-              <h3 className="px-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                Menu Utama
-              </h3>
               <ul className="space-y-1.5 pb-2">
                 {menus.map((item) => {
                   const isActive = item.href !== "#" && (
