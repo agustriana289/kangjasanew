@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     let placeholders: Record<string, string> = {};
     let attachmentBuffer: Buffer | null = null;
     let attachmentName = "";
+    let isBroadcast = false;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       templateId = formData.get("templateId") as string;
       const rawPlaceholders = formData.get("placeholders") as string;
       if (rawPlaceholders) placeholders = JSON.parse(rawPlaceholders);
+      isBroadcast = formData.get("isBroadcast") === "true";
 
       const attachment = formData.get("attachment") as File | null;
       if (attachment && attachment.size > 0) {
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
       fromDomainId = body.fromDomainId;
       templateId = body.templateId;
       placeholders = body.placeholders || {};
+      isBroadcast = body.isBroadcast === true || body.isBroadcast === "true";
     }
 
     if (!to || !templateId) {
@@ -92,10 +95,16 @@ export async function POST(req: NextRequest) {
 
     const mailOptions: nodemailer.SendMailOptions = {
       from: fromAddress,
-      to,
       subject,
       html,
     };
+
+    if (isBroadcast) {
+      mailOptions.to = fromAddress;
+      mailOptions.bcc = to;
+    } else {
+      mailOptions.to = to;
+    }
 
     if (attachmentBuffer && attachmentName) {
       mailOptions.attachments = [

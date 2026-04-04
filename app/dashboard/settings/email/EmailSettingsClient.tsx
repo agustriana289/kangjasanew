@@ -36,6 +36,11 @@ type OrderSuggestion = {
   name: string;
   project: string;
   order_id: string;
+  invoice: string;
+  phone: string;
+  service: string;
+  package_name: string;
+  total_amount: string;
 };
 
 const INPUT_CLASS =
@@ -67,6 +72,7 @@ export default function EmailSettingsClient() {
   const [templateSaving, setTemplateSaving] = useState(false);
   const [isNewTemplate, setIsNewTemplate] = useState(false);
 
+  const [isBroadcast, setIsBroadcast] = useState(false);
   const [sendTo, setSendTo] = useState("");
   const [sendFromId, setSendFromId] = useState("");
   const [sendTemplateId, setSendTemplateId] = useState("");
@@ -91,8 +97,8 @@ export default function EmailSettingsClient() {
 
     const { data: orders } = await supabase
       .from("store_orders")
-      .select("id, form_data, guest_name, guest_phone, user_id, store_services(title), store_products(title)");
-    const { data: users } = await supabase.from("users").select("id, full_name, email");
+      .select("id, order_number, form_data, guest_name, guest_phone, user_id, total_amount, selected_package, store_services(title), store_products(title)");
+    const { data: users } = await supabase.from("users").select("id, full_name, email, phone");
 
     const userMap: Record<string, { full_name: string; email: string }> = {};
     (users || []).forEach((u) => { if (u.id) userMap[u.id] = u; });
@@ -103,16 +109,28 @@ export default function EmailSettingsClient() {
       let email = "";
       let name = "";
       let project = "";
+      let phone = "";
+      let invoice = o.order_number || "";
+      let total = o.total_amount ? String(o.total_amount) : "";
+      
+      let package_name = "";
+      if (typeof o.selected_package === "string") {
+        try { package_name = JSON.parse(o.selected_package)?.name || ""; } catch {}
+      } else if (o.selected_package && typeof o.selected_package === "object") {
+        package_name = (o.selected_package as any)?.name || "";
+      }
 
       const user = o.user_id ? userMap[o.user_id] : null;
       if (user?.email) email = user.email;
       if (user?.full_name) name = user.full_name;
+      if (user?.phone) phone = user.phone;
 
-      if (!email) {
+      if (!email || !name || !phone) {
         try {
           const fd = typeof o.form_data === "string" ? JSON.parse(o.form_data) : o.form_data || {};
-          if (fd.email) email = fd.email;
+          if (!email && fd.email) email = fd.email;
           if (!name) name = fd.customer_name || fd["Client Name"] || o.guest_name || "";
+          if (!phone) phone = fd.whatsapp || o.guest_phone || "";
           project = fd.project_title || fd["Project Title"] || fd["Nama Logo"] || "";
         } catch {}
       }
@@ -122,7 +140,10 @@ export default function EmailSettingsClient() {
 
       if (email && !seen.has(email)) {
         seen.add(email);
-        suggs.push({ email, name, project, order_id: o.id });
+        suggs.push({
+          email, name, project, order_id: o.id,
+          invoice, phone, service: svcTitle, package_name, total_amount: total
+        });
       }
     });
     setSuggestions(suggs);
@@ -256,6 +277,7 @@ export default function EmailSettingsClient() {
     setSending(true);
     const formData = new FormData();
     formData.append("to", sendTo);
+    formData.append("isBroadcast", isBroadcast ? "true" : "false");
     if (sendFromId) formData.append("fromDomainId", sendFromId);
     formData.append("templateId", sendTemplateId);
     formData.append("placeholders", JSON.stringify(sendPlaceholders));
@@ -292,8 +314,14 @@ export default function EmailSettingsClient() {
     setSendTo(s.email);
     setSendPlaceholders((prev) => ({
       ...prev,
-      ...(s.name ? { nama_klien: s.name, client_name: s.name } : {}),
-      ...(s.project ? { nama_proyek: s.project, project_name: s.project } : {}),
+      ...(s.name ? { nama_klien: s.name, client_name: s.name, nama: s.name, name: s.name } : {}),
+      ...(s.project ? { nama_proyek: s.project, project_name: s.project, project: s.project } : {}),
+      ...(s.email ? { email_klien: s.email, email: s.email } : {}),
+      ...(s.phone ? { no_hp: s.phone, phone: s.phone, whatsapp: s.phone } : {}),
+      ...(s.invoice ? { invoice: s.invoice, no_pesanan: s.invoice, order_id: s.invoice } : {}),
+      ...(s.service ? { nama_layanan: s.service, service_name: s.service, layanan: s.service } : {}),
+      ...(s.package_name ? { paket: s.package_name, package: s.package_name } : {}),
+      ...(s.total_amount ? { total_harga: s.total_amount, total: s.total_amount } : {}),
     }));
     setShowSuggestions(false);
   };
@@ -644,34 +672,79 @@ export default function EmailSettingsClient() {
               </p>
             </div>
             <div className={SECTION_CLASS + " space-y-5"}>
-              <div className="relative" ref={suggestRef}>
-                <label className={LABEL_CLASS}>Penerima (To)</label>
+              <div className="flex items-center gap-4 bg-slate-50 p-1.5 rounded-xl border border-slate-200 self-start">
+                <button
+                  type="button"
+                  onClick={() => setIsBroadcast(false)}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${!isBroadcast ? 'bg-white shadow relative text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Individu / Proyek
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBroadcast(true)}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${isBroadcast ? 'bg-white shadow relative text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Broadcast Promosi
+                </button>
+              </div>
+
+              {!isBroadcast && (
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 relative" ref={suggestRef}>
+                  <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-primary">
+                    Pilih Proyek / Pesanan (Opsional - Auto Fill)
+                  </label>
+                  <input
+                    id="search_project"
+                    type="text"
+                    onChange={(e) => handleToInput(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder="Ketik email, nama klien, atau nama proyek untuk auto-fill data..."
+                    className="bg-white border border-primary/20 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary block w-full p-3 transition-all outline-none shadow-sm"
+                    autoComplete="off"
+                  />
+                  {showSuggestions && filterSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                      {filterSuggestions.map((s) => (
+                        <button
+                          key={s.order_id}
+                          onClick={() => selectSuggestion(s)}
+                          className="flex items-center gap-3 w-full px-4 py-3 hover:bg-slate-50 text-left transition-colors border-b border-slate-50 last:border-0"
+                        >
+                          <FileText className="w-4 h-4 text-slate-300 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {s.project || s.service || "-"} {s.invoice ? <span className="text-slate-400 font-medium">#{s.invoice}</span> : ""}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                              {s.name || s.email} &middot; {s.email}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] font-medium text-slate-500 mt-2 leading-relaxed">
+                    Jika proyek dipilih, sistem akan otomatis mengisi field pengiriman dan mereplikasi semua nilai placeholder template (seperti {'{{nama_klien}}'}, {'{{total_harga}}'}) yang tersedia.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className={LABEL_CLASS}>{isBroadcast ? "Penerima Broadcast (BCC)" : "Penerima (To)"}</label>
                 <input
                   id="send_to"
-                  type="email"
+                  type="text"
                   value={sendTo}
-                  onChange={(e) => handleToInput(e.target.value)}
-                  onFocus={() => sendTo.length >= 1 && setShowSuggestions(true)}
-                  placeholder="email@klien.com atau mulai ketik nama klien..."
+                  onChange={(e) => setSendTo(e.target.value)}
+                  placeholder={isBroadcast ? "email1@domain.com, email2@domain.com, ..." : "email@klien.com"}
                   className={INPUT_CLASS}
                   autoComplete="off"
                 />
-                {showSuggestions && filterSuggestions.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-                    {filterSuggestions.map((s) => (
-                      <button
-                        key={s.order_id}
-                        onClick={() => selectSuggestion(s)}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-slate-50 text-left transition-colors border-b border-slate-50 last:border-0"
-                      >
-                        <Mail className="w-4 h-4 text-slate-300 shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 truncate">{s.name || s.email}</p>
-                          <p className="text-xs text-slate-400 truncate">{s.email} {s.project ? `· ${s.project}` : ""}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                {isBroadcast && (
+                  <p className="text-[11px] font-medium text-slate-500 mt-1.5">
+                    Mode Broadcast: Pisahkan banyak email sekaligus dengan tanda koma (,). Sistem akan mengirim via BCC agar privasi klien terjaga dan tidak saling melihat alamat penerima lainnya.
+                  </p>
                 )}
               </div>
 
