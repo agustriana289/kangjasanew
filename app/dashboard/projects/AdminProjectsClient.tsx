@@ -27,7 +27,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
 const IDR_FULL = (n: number) => `Rp ${Number(n || 0).toLocaleString("id-ID")}`;
 const IDR = (n: number) =>
-  n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`
+  n >= 1_000_000_000 ? `Rp ${(n / 1_000_000_000).toFixed(n % 1_000_000_000 === 0 ? 0 : 1)}M`
+  : n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}Jt`
   : n >= 1_000 ? `Rp ${Math.round(n / 1_000)}K`
   : `Rp ${n.toLocaleString("id-ID")}`;
 
@@ -215,6 +216,9 @@ export default function AdminProjectsClient() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ project_title: "", customer_name: "", whatsapp: "", customer_email: "", total_amount: "", status: "pending" as string });
+  const [addSaving, setAddSaving] = useState(false);
 
   // Cards state
   const [stats, setStats] = useState({
@@ -497,6 +501,33 @@ export default function AdminProjectsClient() {
     }
   };
 
+  const handleAddCustomProject = async () => {
+    if (!addForm.project_title) return showToast("Judul proyek wajib diisi", "error");
+    setAddSaving(true);
+    const fd = {
+      project_title: addForm.project_title,
+      "Project Title": addForm.project_title,
+      customer_name: addForm.customer_name,
+      "Client Name": addForm.customer_name,
+      whatsapp: addForm.whatsapp,
+      email: addForm.customer_email,
+    };
+    const { error } = await supabase.from("store_orders").insert({
+      status: addForm.status,
+      total_amount: addForm.total_amount ? Number(addForm.total_amount) : 0,
+      form_data: fd,
+      order_number: `CUSTOM-${Date.now()}`,
+    });
+    if (error) showToast("Gagal menambah proyek: " + error.message, "error");
+    else {
+      showToast("Proyek berhasil ditambahkan", "success");
+      setShowAddModal(false);
+      setAddForm({ project_title: "", customer_name: "", whatsapp: "", customer_email: "", total_amount: "", status: "pending" });
+      fetchOrders();
+    }
+    setAddSaving(false);
+  };
+
   const handleSaveEdit = async () => {
     const fd = getFormData(selectedProject);
     const updatedFd = {
@@ -510,17 +541,21 @@ export default function AdminProjectsClient() {
     };
     const updatePayload: any = {
       status: editFormData.status,
-      total_amount: editFormData.total_amount,
-      discount_amount: editFormData.discount_amount,
+      total_amount: Number(editFormData.total_amount) || 0,
+      discount_amount: Number(editFormData.discount_amount) || 0,
       payment_method: editFormData.payment_method,
       progress: editFormData.progress,
       form_data: updatedFd,
     };
+    if (editFormData.service_id) {
+      updatePayload.service_id = editFormData.service_id;
+      updatePayload.selected_package = editFormData.package_name ? { name: editFormData.package_name } : null;
+    }
     if (selectedProject.guest_name !== undefined) updatePayload.guest_name = editFormData.customer_name;
     if (selectedProject.guest_phone !== undefined) updatePayload.guest_phone = editFormData.whatsapp;
 
     const { error } = await supabase.from("store_orders").update(updatePayload).eq("id", selectedProject.id);
-    if (error) showToast("Gagal menyimpan", "error");
+    if (error) showToast("Gagal menyimpan: " + error.message, "error");
     else { showToast("Perubahan disimpan", "success"); fetchOrders(); setModalView("detail"); }
   };
 
@@ -537,6 +572,8 @@ export default function AdminProjectsClient() {
         customer_email: getClientEmail(o),
         whatsapp: getClientWhatsApp(o),
         project_title: getProjectTitle(o),
+        service_id: (o.service_id as string) || "",
+        package_name: getPackageName(o),
       });
     }
     const defaultDomain = domains.find(d => d.is_default)?.id || "";
@@ -693,10 +730,18 @@ export default function AdminProjectsClient() {
       </div>
 
       <div className="flex items-center justify-between gap-4 mt-2 mb-2">
-         <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari pesanan..."
-              className="pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 w-full sm:w-64 shadow-sm font-medium" />
+         <div className="flex items-center gap-2">
+            <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari pesanan..."
+                 className="pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 w-full sm:w-64 shadow-sm font-medium" />
+            </div>
+            <button
+               onClick={() => setShowAddModal(true)}
+               className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+            >
+               <Plus className="w-4 h-4" /> Tambah Proyek
+            </button>
          </div>
       </div>
 
@@ -731,16 +776,34 @@ export default function AdminProjectsClient() {
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Informasi Utama</p>
                         <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-3">
-                           <div className="flex justify-between items-start border-b border-slate-200/60 pb-3">
-                              <div>
-                                <p className="text-xs text-slate-500 font-medium mb-0.5">Judul Proyek</p>
-                                <p className="text-sm font-bold text-slate-900 leading-tight">{getProjectTitle(selectedProject)}</p>
-                              </div>
+                           <div className="border-b border-slate-200/60 pb-3">
+                              <p className="text-xs text-slate-500 font-medium mb-0.5">Judul Proyek</p>
+                              <InlineText
+                                value={getProjectTitle(selectedProject)}
+                                placeholder="Ketik judul proyek..."
+                                onChange={v => {
+                                  const fd = getFormData(selectedProject);
+                                  updateFormField(selectedProject.id, selectedProject, { form_data: { ...fd, project_title: v, "Project Title": v } });
+                                  setSelectedProject((p: any) => ({ ...p, form_data: { ...fd, project_title: v, "Project Title": v } }));
+                                }}
+                              />
                            </div>
                            <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-xs text-slate-500 font-medium mb-0.5">Layanan</p>
-                                <p className="text-sm font-semibold text-slate-800">{getServiceTitle(selectedProject)}</p>
+                                <p className="text-xs text-slate-500 font-medium mb-1">Layanan</p>
+                                <InlineLayanan
+                                  serviceId={(selectedProject.service_id as string) || ""}
+                                  packageName={getPackageName(selectedProject)}
+                                  services={servicesList}
+                                  onChangeService={(newId: string) => {
+                                    const newSvc = servicesList.find(s => s.id === newId);
+                                    updateServiceAndPackage(selectedProject.id, newId, newSvc?.packages?.[0]?.name || "", selectedProject);
+                                    setSelectedProject((p: any) => ({ ...p, service_id: newId }));
+                                  }}
+                                  onChangePackage={(newPkg: string) => {
+                                    updateServiceAndPackage(selectedProject.id, (selectedProject.service_id as string) || "", newPkg, selectedProject);
+                                  }}
+                                />
                               </div>
                               <div>
                                 <p className="text-xs text-slate-500 font-medium mb-0.5">Paket</p>
@@ -811,10 +874,13 @@ export default function AdminProjectsClient() {
                            <span className="flex items-center gap-2 text-sm font-bold"><MessageSquare className="w-4 h-4 text-slate-400" /> Buka Ruang Kerja</span>
                            <ExternalLink className="w-3.5 h-3.5 opacity-50" />
                          </Link>
-                         <button onClick={() => generateTestimonial(selectedProject.id)} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
-                           <span className="flex items-center gap-2 text-sm font-bold"><Star className="w-4 h-4 text-amber-400" /> Salin Link Testimoni</span>
-                           <Copy className="w-3.5 h-3.5 opacity-50" />
-                         </button>
+                         <button onClick={() => {
+                            const url = `${window.location.origin}/testimonials/submit/${selectedProject.id}`;
+                            navigator.clipboard.writeText(url).then(() => showToast("Link testimoni berhasil disalin!", "success")).catch(() => showToast("Gagal menyalin link", "error"));
+                          }} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
+                            <span className="flex items-center gap-2 text-sm font-bold"><Star className="w-4 h-4 text-amber-400" /> Salin Link Testimoni</span>
+                            <Copy className="w-3.5 h-3.5 opacity-50" />
+                          </button>
                          <div className="grid grid-cols-2 gap-2 mt-2">
                            <button onClick={() => openSlide(selectedProject, "edit")} className="w-full flex justify-center items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-colors">
                               <Edit3 className="w-3.5 h-3.5" /> Edit

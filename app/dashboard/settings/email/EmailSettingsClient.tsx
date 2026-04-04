@@ -308,13 +308,22 @@ export default function EmailSettingsClient() {
   };
 
   const handleSendEmail = async () => {
-    if (!sendTo || !sendTemplateId) {
-      showToast("Penerima dan template harus dipilih.", "error");
+    if (isBroadcast && subscribers.length === 0) {
+      showToast("Tidak ada subscriber. Tambahkan subscriber terlebih dahulu.", "error");
       return;
     }
+    if (!isBroadcast && !sendTo) {
+      showToast("Penerima email harus diisi.", "error");
+      return;
+    }
+    if (!sendTemplateId) {
+      showToast("Template harus dipilih.", "error");
+      return;
+    }
+    const toValue = isBroadcast ? subscribers.map(s => s.email).join(", ") : sendTo;
     setSending(true);
     const formData = new FormData();
-    formData.append("to", sendTo);
+    formData.append("to", toValue);
     formData.append("isBroadcast", isBroadcast ? "true" : "false");
     if (sendFromId) formData.append("fromDomainId", sendFromId);
     formData.append("templateId", sendTemplateId);
@@ -841,7 +850,10 @@ export default function EmailSettingsClient() {
               <div className="flex items-center gap-4 bg-slate-50 p-1.5 rounded-xl border border-slate-200 self-start">
                 <button
                   type="button"
-                  onClick={() => setIsBroadcast(false)}
+                  onClick={() => {
+                    setIsBroadcast(false);
+                    setSendTo("");
+                  }}
                   className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${!isBroadcast ? 'bg-white shadow relative text-primary' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Individu
@@ -850,15 +862,34 @@ export default function EmailSettingsClient() {
                   type="button"
                   onClick={() => {
                     setIsBroadcast(true);
-                    if (subscribers.length > 0 && !sendTo) {
-                      setSendTo(subscribers.map(s => s.email).join(", "));
-                    }
+                    setSendTo(subscribers.map(s => s.email).join(", "));
                   }}
                   className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${isBroadcast ? 'bg-white shadow relative text-primary' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Broadcast Promosi
                 </button>
               </div>
+
+              {isBroadcast && (
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl">
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Penerima Broadcast ({subscribers.length} Subscriber)</p>
+                  {subscribers.length === 0 ? (
+                    <p className="text-sm text-slate-500 font-medium">Belum ada subscriber. Tambahkan subscriber terlebih dahulu di tab <span className="font-bold text-primary">Daftar Subscriber</span>.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                      {subscribers.map(s => (
+                        <span key={s.id} className="inline-flex items-center gap-1 text-xs bg-white border border-primary/20 text-primary font-semibold px-2 py-1 rounded-lg">
+                          <Users className="w-3 h-3" />
+                          {s.name ? `${s.name} (${s.email})` : s.email}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] font-medium text-slate-500 mt-2 leading-relaxed">
+                    Email akan dikirim via BCC ke semua subscriber di atas agar privasi terjaga.
+                  </p>
+                </div>
+              )}
 
               {!isBroadcast && (
                 <div className="bg-primary/5 p-4 rounded-xl border border-primary/20" ref={suggestRef}>
@@ -908,23 +939,20 @@ export default function EmailSettingsClient() {
                 </div>
               )}
 
-              <div>
-                <label className={LABEL_CLASS}>{isBroadcast ? "Penerima Broadcast (BCC)" : "Penerima (To)"}</label>
-                <input
-                  id="send_to"
-                  type="text"
-                  value={sendTo}
-                  onChange={(e) => setSendTo(e.target.value)}
-                  placeholder={isBroadcast ? "email1@domain.com, email2@domain.com, ..." : "email@klien.com"}
-                  className={INPUT_CLASS}
-                  autoComplete="off"
-                />
-                {isBroadcast && (
-                  <p className="text-[11px] font-medium text-slate-500 mt-1.5">
-                    Mode Broadcast: Pisahkan banyak email sekaligus dengan tanda koma (,). Sistem akan mengirim via BCC agar privasi klien terjaga dan tidak saling melihat alamat penerima lainnya.
-                  </p>
-                )}
-              </div>
+              {!isBroadcast && (
+                <div>
+                  <label className={LABEL_CLASS}>Penerima (To)</label>
+                  <input
+                    id="send_to"
+                    type="text"
+                    value={sendTo}
+                    onChange={(e) => setSendTo(e.target.value)}
+                    placeholder="email@klien.com"
+                    className={INPUT_CLASS}
+                    autoComplete="off"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className={LABEL_CLASS}>Kirim Dari</label>
@@ -996,7 +1024,7 @@ export default function EmailSettingsClient() {
                 <button
                   id="send_email_btn"
                   onClick={handleSendEmail}
-                  disabled={sending || !sendTo || !sendTemplateId}
+                  disabled={sending || !sendTemplateId || (isBroadcast ? subscribers.length === 0 : !sendTo)}
                   className="inline-flex items-center gap-2 bg-primary text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
