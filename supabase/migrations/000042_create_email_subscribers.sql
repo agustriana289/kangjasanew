@@ -15,6 +15,6 @@ CREATE POLICY "Admin can full access email subscribers" ON public.email_subscrib
         auth.role() = 'authenticated' AND 
         EXISTS (
             SELECT 1 FROM public.users 
-            WHERE users.id = auth.uid() AND users.role = 'admin'
+            WHERE users.id = auth.uid() AND users.is_admin = true
         )
     );
