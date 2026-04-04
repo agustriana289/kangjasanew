@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -84,6 +85,10 @@ export default function EmailSettingsClient() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filterSuggestions, setFilterSuggestions] = useState<OrderSuggestion[]>([]);
   const suggestRef = useRef<HTMLDivElement>(null);
+  const suggestInputRef = useRef<HTMLInputElement>(null);
+  const [dropdownTop, setDropdownTop] = useState(0);
+  const [dropdownLeft, setDropdownLeft] = useState(0);
+  const [dropdownWidth, setDropdownWidth] = useState(0);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -139,8 +144,8 @@ export default function EmailSettingsClient() {
       const svcTitle = ((o.store_services as any)?.title) || ((o.store_products as any)?.title) || "";
       if (!project) project = svcTitle;
 
-      if (email && !seen.has(email)) {
-        seen.add(email);
+      if (!seen.has(o.id)) {
+        seen.add(o.id);
         suggs.push({
           email, name, project, order_id: o.id,
           invoice, phone, service: svcTitle, package_name, total_amount: total
@@ -300,16 +305,29 @@ export default function EmailSettingsClient() {
 
   const handleProjectSearch = (val: string) => {
     setProjectSearch(val);
-    if (!val) {
-      setFilterSuggestions(suggestions.slice(0, 8));
-      setShowSuggestions(true);
-      return;
-    }
     const q = val.toLowerCase();
-    setFilterSuggestions(suggestions.filter(
-      (s) => s.email.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || s.project.toLowerCase().includes(q) || s.invoice.toLowerCase().includes(q)
-    ).slice(0, 8));
+    const filtered = val
+      ? suggestions.filter(
+          (s) =>
+            (s.email || "").toLowerCase().includes(q) ||
+            (s.name || "").toLowerCase().includes(q) ||
+            (s.project || "").toLowerCase().includes(q) ||
+            (s.service || "").toLowerCase().includes(q) ||
+            (s.invoice || "").toLowerCase().includes(q)
+        )
+      : suggestions;
+    setFilterSuggestions(filtered.slice(0, 10));
     setShowSuggestions(true);
+  };
+
+  const openDropdown = () => {
+    if (suggestInputRef.current) {
+      const rect = suggestInputRef.current.getBoundingClientRect();
+      setDropdownTop(rect.bottom + window.scrollY + 4);
+      setDropdownLeft(rect.left + window.scrollX);
+      setDropdownWidth(rect.width);
+    }
+    handleProjectSearch(projectSearch);
   };
 
   const selectSuggestion = (s: OrderSuggestion) => {
@@ -715,40 +733,46 @@ export default function EmailSettingsClient() {
               </div>
 
               {!isBroadcast && (
-                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 relative" ref={suggestRef}>
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20" ref={suggestRef}>
                   <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-primary">
                     Pilih Proyek / Pesanan (Opsional - Auto Fill)
                   </label>
                   <input
+                    ref={suggestInputRef}
                     id="search_project"
                     type="text"
                     value={projectSearch}
                     onChange={(e) => handleProjectSearch(e.target.value)}
-                    onFocus={() => handleProjectSearch(projectSearch)}
-                    placeholder="Pilih dari daftar atau ketik nama klien, proyek..."
+                    onFocus={openDropdown}
+                    placeholder="Klik untuk menampilkan semua proyek, atau ketik untuk filter..."
                     className="bg-white border border-primary/20 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-primary/40 focus:border-primary block w-full p-3 transition-all outline-none shadow-sm"
                     autoComplete="off"
                   />
-                  {showSuggestions && filterSuggestions.length > 0 && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                  {showSuggestions && filterSuggestions.length > 0 && createPortal(
+                    <div
+                      style={{ position: "fixed", top: dropdownTop, left: dropdownLeft, width: dropdownWidth, zIndex: 9999, maxHeight: "280px" }}
+                      className="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-y-auto"
+                    >
                       {filterSuggestions.map((s) => (
                         <button
                           key={s.order_id}
-                          onClick={() => selectSuggestion(s)}
-                          className="flex items-center gap-3 w-full px-4 py-3 hover:bg-slate-50 text-left transition-colors border-b border-slate-50 last:border-0"
+                          onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s); }}
+                          className="flex items-center gap-3 w-full px-4 py-3 hover:bg-primary/5 text-left transition-colors border-b border-slate-50 last:border-0"
                         >
                           <FileText className="w-4 h-4 text-slate-300 shrink-0" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold text-slate-900 truncate">
-                              {s.project || s.service || "-"} {s.invoice ? <span className="text-slate-400 font-medium">#{s.invoice}</span> : ""}
+                              {s.project || s.service || "—"}
+                              {s.invoice && <span className="text-slate-400 font-normal ml-1 text-xs">#{s.invoice}</span>}
                             </p>
                             <p className="text-xs text-slate-500 truncate mt-0.5">
-                              {s.name || s.email} &middot; {s.email}
+                              {s.name || "(Tanpa nama)"} {s.email && <span className="text-slate-400">&middot; {s.email}</span>}
                             </p>
                           </div>
                         </button>
                       ))}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                   <p className="text-[11px] font-medium text-slate-500 mt-2 leading-relaxed">
                     Jika proyek dipilih, sistem akan otomatis mengisi field pengiriman dan mereplikasi semua nilai placeholder template (seperti {'{{nama_klien}}'}, {'{{total_harga}}'}) yang tersedia.

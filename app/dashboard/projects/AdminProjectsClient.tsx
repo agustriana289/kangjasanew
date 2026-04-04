@@ -2,1072 +2,787 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Search, Package, Calendar, Briefcase, Loader2,
-  CheckCircle2, Clock, XCircle, CreditCard,
-  X, Edit, MessageSquare, ChevronLeft, ChevronRight, Eye,
-  Phone, Mail, FileText, Hash, User, Trash2, Wallet, Users, TrendingUp, PartyPopper, Star,
-  Upload, Plus
+  BarChart3, LayoutGrid, Tag, Search, ChevronDown, Trash2, Eye, ExternalLink, Mail, Edit3,
+  ChevronRight, ChevronLeft, Loader2, Check, FileText, Phone, Users, Briefcase, Plus, PartyPopper, MessageSquare, Copy, Star, X, Send, Calendar, Wallet, TrendingUp, Paperclip
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
-const PAGE_SIZE = 20;
+type ViewMode = "table" | "status" | "layanan" | "klien" | "grafik";
+
+const CURRENT_YEAR = new Date().getFullYear();
+const PAGE_SIZE = 100;
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+  pending:         { label: "No Status",     color: "#9b9b9b", bg: "#f5f5f4", dot: "#9b9b9b" },
+  waiting_payment: { label: "Belum Dibayar", color: "#b45309", bg: "#fffbeb", dot: "#f59e0b" },
+  cancelled:       { label: "Dibatalkan",    color: "#dc2626", bg: "#fef2f2", dot: "#ef4444" },
+  paid:            { label: "Dibayar",       color: "#1d4ed8", bg: "#eff6ff", dot: "#3b82f6" },
+  processing:      { label: "Dikerjakan",    color: "#7c3aed", bg: "#f5f3ff", dot: "#8b5cf6" },
+  completed:       { label: "Selesai",       color: "#047857", bg: "#ecfdf5", dot: "#10b981" },
+};
+
+const ALL_STATUSES = Object.keys(STATUS_CONFIG);
+const IDR_FULL = (n: number) => `Rp ${Number(n || 0).toLocaleString("id-ID")}`;
+const IDR = (n: number) =>
+  n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`
+  : n >= 1_000 ? `Rp ${Math.round(n / 1_000)}K`
+  : `Rp ${n.toLocaleString("id-ID")}`;
+
+function StatusBadge({ status, onClick }: { status: string; onClick?: () => void }) {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  return (
+    <button
+      onClick={onClick}
+      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}22` }}
+      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80"
+    >
+      <span style={{ background: cfg.dot }} className="w-1.5 h-1.5 rounded-full shrink-0" />
+      {cfg.label}
+    </button>
+  );
+}
+
+function InlineText({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  const commit = () => { setEditing(false); if (draft !== value) onChange(draft); };
+  return editing ? (
+    <input autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+      className="w-full text-sm border-0 outline-none bg-blue-50 rounded px-2 py-0.5 ring-2 ring-primary/30 text-slate-900 font-medium" />
+  ) : (
+    <div onClick={() => setEditing(true)} className="text-sm text-slate-700 hover:bg-slate-50 px-2 py-0.5 rounded cursor-text min-h-[26px] flex items-center transition-colors">
+      {value || <span className="text-slate-300 italic">{placeholder || "—"}</span>}
+    </div>
+  );
+}
+
+function InlineNumber({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  const commit = () => { setEditing(false); const num = Number(draft.replace(/\D/g, "")); if (num !== value) onChange(num); };
+  return editing ? (
+    <input autoFocus type="number" value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(String(value)); setEditing(false); } }}
+      className="w-full text-sm border-0 outline-none bg-blue-50 rounded px-2 py-0.5 ring-2 ring-primary/30 text-slate-900 font-medium" />
+  ) : (
+    <div onClick={() => setEditing(true)} className="text-sm text-slate-700 hover:bg-slate-50 px-2 py-0.5 rounded cursor-text min-h-[26px] flex items-center transition-colors">
+      {value > 0 ? IDR_FULL(value) : <span className="text-slate-300 italic">—</span>}
+    </div>
+  );
+}
+
+function InlineStatus({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler); return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <StatusBadge status={value} onClick={() => setOpen(o => !o)} />
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-white shadow-xl border border-slate-200 rounded-xl overflow-hidden min-w-[160px]">
+          {ALL_STATUSES.map(st => {
+            const cfg = STATUS_CONFIG[st];
+            return (
+              <button key={st} onClick={() => { onChange(st); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-50 text-left transition-colors">
+                <span style={{ background: cfg.dot }} className="w-2 h-2 rounded-full shrink-0" />
+                <span style={{ color: cfg.color }} className="text-sm font-medium">{cfg.label}</span>
+                {value === st && <Check className="w-3 h-3 ml-auto text-primary" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineLayanan({ serviceId, packageName, services, onChangeService, onChangePackage }: any) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const currentService = services.find((s: any) => s.id === serviceId);
+  const packages = currentService?.packages || [];
+  const display = currentService
+    ? `${currentService.title}${packageName && packageName !== "—" ? ` - ${packageName}` : ""}`
+    : (packageName && packageName !== "—" ? packageName : "—");
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler); return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <div onClick={() => setOpen(o => !o)} className="text-sm text-slate-700 hover:bg-slate-50 px-2 py-0.5 rounded cursor-pointer min-h-[26px] flex items-center transition-colors">
+        {display || <span className="text-slate-300 italic">—</span>}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-white shadow-xl border border-slate-200 rounded-xl overflow-hidden min-w-[240px]">
+          <div className="px-3 py-2 border-b border-slate-100">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Layanan</p>
+            <div className="space-y-0.5 max-h-40 overflow-y-auto">
+              {services.map((svc: any) => (
+                <button key={svc.id} onClick={() => onChangeService(svc.id)} className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-slate-50 text-left rounded transition-colors">
+                  <span className="text-sm text-slate-700 flex-1">{svc.title}</span>
+                  {svc.id === serviceId && <Check className="w-3 h-3 text-primary shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {packages.length > 0 && (
+            <div className="px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Paket</p>
+              <div className="space-y-0.5">
+                {packages.map((pkg: any) => (
+                  <button key={pkg.name} onClick={() => { onChangePackage(pkg.name); setOpen(false); }} className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-slate-50 text-left rounded transition-colors">
+                    <span className="text-sm text-slate-700 flex-1">{pkg.name}</span>
+                    {pkg.name === packageName && <Check className="w-3 h-3 text-primary shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function extractPlaceholders(html: string): string[] {
+  const matches = html.match(/\{\{(\w+)\}\}/g) || [];
+  return [...new Set(matches.map((m) => m.slice(2, -2)))];
+}
 
 export default function AdminProjectsClient() {
   const supabase = createClient();
   const { showToast } = useToast();
-  const [orders, setOrders] = useState<any[]>([]);
+
+  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
+  const [servicesList, setServicesList] = useState<{ id: string; title: string; packages: { name: string }[] }[]>([]);
+  const [allCharges, setAllCharges] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"all" | "shop" | "service">("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
 
-  const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<any>({});
-  const [updating, setUpdating] = useState(false);
-
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createFormData, setCreateFormData] = useState<any>({
-    title: "", client_name: "", total_amount: "", status: "pending",
-    user_id: "", service_id: "", selected_package: null
+  // Cards state
+  const [stats, setStats] = useState({
+    topClient: { name: "-", count: 0, amount: 0 },
+    topItem: { name: "-", count: 0, amount: 0 },
+    monthlyOrderCount: 0,
+    monthlyOrderAmount: 0,
+    totalOrderCount: 0,
+    totalOrderAmount: 0,
   });
-  const [creatingProject, setCreatingProject] = useState(false);
-  const [usersList, setUsersList] = useState<any[]>([]);
-  const [servicesList, setServicesList] = useState<any[]>([]);
-  const [productsList, setProductsList] = useState<any[]>([]);
 
-  const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [additionalCharges, setAdditionalCharges] = useState<{ id: string; description: string; amount: number }[]>([]);
-  const [chargesSaving, setChargesSaving] = useState(false);
+  // Modal Detail & Email state
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [modalView, setModalView] = useState<"detail" | "email" | "edit">("detail");
+  const [isSlideOpen, setIsSlideOpen] = useState(false);
+  const [domains, setDomains] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  
+  // Email Form State
+  const [sendFromId, setSendFromId] = useState("");
+  const [sendTemplateId, setSendTemplateId] = useState("");
+  const [sendAttachment, setSendAttachment] = useState<File | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  
+  // Edit Form State
+  const [editFormData, setEditFormData] = useState<any>({});
+
+  const getFormData = (o: Record<string, unknown>) => {
+    try { return typeof o.form_data === "string" ? JSON.parse(o.form_data) : (o.form_data as Record<string, unknown> || {}); }
+    catch { return {}; }
+  };
+  const getProjectTitle = (o: Record<string, unknown>) => {
+    const fd = getFormData(o);
+    return (fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || "") as string;
+  };
+  const getClientName = (o: Record<string, unknown>) => {
+    const client = o.client as Record<string, unknown> | null;
+    if (client?.full_name) return client.full_name as string;
+    if (client?.email) return (client.email as string).split("@")[0];
+    if (o.guest_name) return o.guest_name as string;
+    const fd = getFormData(o);
+    return (fd.customer_name || fd["Client Name"] || "—") as string;
+  };
+  const getClientEmail = (o: Record<string, unknown>) => {
+    const client = o.client as Record<string, unknown> | null;
+    if (client?.email) return client.email as string;
+    if (o.guest_name) return "";
+    const fd = getFormData(o);
+    return (fd.email || fd.customer_email || "") as string;
+  };
+  const getClientWhatsApp = (o: Record<string, unknown>) => {
+    if (o.guest_phone) return o.guest_phone as string;
+    const fd = getFormData(o);
+    return (fd.whatsapp || "—") as string;
+  };
+  const getServiceTitle = (o: Record<string, unknown>) => {
+    const svc = o.store_services as Record<string, unknown> | null;
+    const prd = o.store_products as Record<string, unknown> | null;
+    return (svc?.title || prd?.title || o.custom_item_name || "") as string;
+  };
+  const getPackageName = (o: Record<string, unknown>) => {
+    try {
+      const sp = typeof o.selected_package === "string" ? JSON.parse(o.selected_package) : o.selected_package as Record<string, unknown> | null;
+      return (sp?.name || o.custom_package_name || "") as string;
+    } catch { return (o.custom_package_name || "") as string; }
+  };
+
+  const calculateStats = (data: any[], chargeMap: Record<string, number>) => {
+    const completedStats = data.filter(o => ['paid', 'processing', 'completed'].includes(o.status));
+
+    const clientStats: Record<string, { count: number; amount: number; name: string }> = {};
+    let topC = { name: "Belum ada pesanan", count: 0, amount: 0 };
+    
+    const itemStats: Record<string, { count: number; amount: number; name: string }> = {};
+    let topI = { name: "Belum ada pesanan", count: 0, amount: 0 };
+
+    const currentMonthIdx = new Date().getMonth();
+    const currentYr = new Date().getFullYear();
+    let mCount = 0;
+    let mAmount = 0;
+    let tCount = completedStats.length;
+    let tAmount = 0;
+
+    completedStats.forEach(o => {
+      const amt = Number(o.total_amount || 0) + (chargeMap[o.id] || 0);
+      tAmount += amt;
+
+      const d = new Date(o.created_at);
+      if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYr) {
+        mCount++;
+        mAmount += amt;
+      }
+
+      const cName = getClientName(o);
+      if (cName !== "—") {
+        if (!clientStats[cName]) clientStats[cName] = { count: 0, amount: 0, name: cName };
+        clientStats[cName].count++;
+        clientStats[cName].amount += amt;
+        if (clientStats[cName].count > topC.count) topC = clientStats[cName];
+      }
+
+      const iName = getServiceTitle(o) || "Proyek";
+      if (!itemStats[iName]) itemStats[iName] = { count: 0, amount: 0, name: iName };
+      itemStats[iName].count++;
+      itemStats[iName].amount += amt;
+      if (itemStats[iName].count > topI.count) topI = itemStats[iName];
+    });
+
+    setStats({
+      topClient: topC,
+      topItem: topI,
+      monthlyOrderCount: mCount,
+      monthlyOrderAmount: mAmount,
+      totalOrderCount: tCount,
+      totalOrderAmount: tAmount,
+    });
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: profiles } = await supabase.from("users").select("id, full_name, email, avatar_url");
-      const profileMap: Record<string, any> = {};
-      (profiles || []).forEach((p: any) => { if (p.id) profileMap[p.id] = p; });
-
-      const { data, error } = await supabase
-        .from("store_orders")
-        .select("*, store_products(title, category), store_services(title, category), store_workspaces(id)")
-        .order("created_at", { ascending: false });
-
+      const { data: profiles } = await supabase.from("users").select("id, full_name, email");
+      const profileMap: Record<string, Record<string, unknown>> = {};
+      (profiles || []).forEach((p: Record<string, unknown>) => { if (p.id) profileMap[p.id as string] = p; });
+      
+      const [
+        { data, error }, 
+        { data: svcs }, 
+        { data: doms }, 
+        { data: tmpls }
+      ] = await Promise.all([
+        supabase.from("store_orders").select("*, store_products(title, category), store_services(title, category)").order("created_at", { ascending: false }),
+        supabase.from("store_services").select("id, title, packages").order("sort_order", { ascending: true }),
+        supabase.from("email_domains").select("*"),
+        supabase.from("email_templates").select("*")
+      ]);
       if (error) throw error;
 
-      const { data: chargesData } = await supabase.from("order_additional_charges").select("id, order_id, description, amount");
-      const chargesMap: Record<string, any[]> = {};
-      (chargesData || []).forEach((c: any) => {
-        if (!chargesMap[c.order_id]) chargesMap[c.order_id] = [];
-        chargesMap[c.order_id].push(c);
-      });
+      setDomains(doms || []);
+      setTemplates(tmpls || []);
 
-      const { data: services } = await supabase.from("store_services").select("id, title, packages");
-      setServicesList(services || []);
+      const mapped = (data || []).map(o => ({ ...o, client: profileMap[o.user_id as string] || null }));
+      setOrders(mapped);
+      setServicesList(svcs || []);
 
-      const { data: products } = await supabase.from("store_products").select("id, title, packages");
-      setProductsList(products || []);
-
-      const { data: testimonials } = await supabase.from("store_testimonials").select("id, order_id, comment");
-      const testimonialMap = new Map();
-      (testimonials || []).forEach((t: any) => testimonialMap.set(t.order_id, t));
-
-      const { data: portfolios } = await supabase.from("store_portfolios").select("id, order_id, images");
-      const portfolioMap = new Map();
-      (portfolios || []).forEach((p: any) => { if (p.order_id) portfolioMap.set(p.order_id, p); });
-
-      setOrders((data || []).map((o: any) => ({ 
-        ...o, 
-        client: profileMap[o.user_id] || null,
-        testimonial: testimonialMap.get(o.id) || null,
-        portfolio: portfolioMap.get(o.id) || null,
-        charges: chargesMap[o.id] || []
-      })));
-      setUsersList(profiles || []);
-    } catch (error: any) {
-      showToast(error.message || "Gagal mengambil data proyek", "error");
+      const ids = mapped.map(o => o.id as string);
+      let chargeMap: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: charges } = await supabase.from("order_additional_charges").select("order_id, amount").in("order_id", ids);
+        (charges || []).forEach((c: any) => {
+          chargeMap[c.order_id] = (chargeMap[c.order_id] || 0) + Number(c.amount || 0);
+        });
+        setAllCharges(chargeMap);
+      }
+      
+      calculateStats(mapped, chargeMap);
+    } catch (err: unknown) {
+      showToast((err as Error).message || "Gagal memuat data", "error");
     } finally {
       setLoading(false);
     }
   }, [supabase, showToast]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { setPage(1); }, [view, search, selectedYear]);
 
-  const getFormData = (o: any) => {
-    try { return typeof o.form_data === "string" ? JSON.parse(o.form_data) : (o.form_data || {}); }
-    catch { return {}; }
+  const updateField = async (id: string, field: string, value: string | number) => {
+    setSaving(s => ({ ...s, [id]: true }));
+    const { error } = await supabase.from("store_orders").update({ [field]: value }).eq("id", id);
+    if (error) showToast("Gagal menyimpan", "error");
+    else setOrders(prev => prev.map(o => o.id === id ? { ...o, [field]: value } : o));
+    setSaving(s => ({ ...s, [id]: false }));
   };
 
-  const getProjectTitle = (o: any) => {
-    const fd = getFormData(o) || {};
-    const projectNote = fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "";
-    if (projectNote) return projectNote;
-
-    const baseTitle = o.store_services?.title || o.store_products?.title || o.custom_item_name || fd.custom_item_name || "";
-    let pkgName = "";
-    try {
-      if (typeof o.selected_package === "string") {
-        try { pkgName = JSON.parse(o.selected_package)?.name || ""; } catch { pkgName = o.selected_package; }
-      } else {
-        pkgName = o.selected_package?.name || "";
-      }
-    } catch { /* ignore */ }
-    
-    if (!pkgName) pkgName = o.custom_package_name || fd.custom_package_name || "";
-
-    if (baseTitle && pkgName) return `${baseTitle} (${pkgName})`;
-    if (baseTitle) return baseTitle;
-    if (pkgName) return pkgName;
-    return fd.customer_name || "Proyek";
+  const updateFormField = async (id: string, o: Record<string, unknown>, extra: Record<string, unknown>) => {
+    setSaving(s => ({ ...s, [id]: true }));
+    const { error } = await supabase.from("store_orders").update(extra).eq("id", id);
+    if (error) showToast("Gagal menyimpan", "error");
+    else fetchOrders();
+    setSaving(s => ({ ...s, [id]: false }));
   };
 
-  const getClientName = (o: any) => {
-    if (o.client?.full_name) return o.client.full_name;
-    if (o.client?.email) return o.client.email.split("@")[0];
-    if (o.guest_name) return o.guest_name;
-    const fd = getFormData(o);
-    return fd.customer_name || fd["Client Name"] || "Klien Tidak Dikenal";
+  const updateServiceAndPackage = async (id: string, serviceId: string, pkgName: string, o: Record<string, unknown>) => {
+    setSaving(s => ({ ...s, [id]: true }));
+    const { error } = await supabase.from("store_orders").update({
+      service_id: serviceId,
+      selected_package: { name: pkgName },
+      form_data: getFormData(o),
+    }).eq("id", id);
+    if (error) showToast("Gagal menyimpan", "error");
+    else fetchOrders();
+    setSaving(s => ({ ...s, [id]: false }));
   };
 
-  const getClientEmail = (o: any) => {
-    if (o.client?.email) return o.client.email;
-    const fd = getFormData(o);
-    if (o.guest_name) return `(Guest via WhatsApp)`;
-    return fd.customer_email || null;
-  };
-
-  const getClientWhatsapp = (o: any) => {
-    if (o.guest_phone) return o.guest_phone;
-    const fd = getFormData(o);
-    return fd.whatsapp || null;
-  };
-
-  const getClientInitial = (o: any) => getClientName(o).substring(0, 2).toUpperCase();
-
-  const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("store_orders").update({ status }).eq("id", id);
-    if (error) return showToast("Gagal memperbarui status", "error");
-    showToast(`Status diperbarui ke ${status}`, "success");
-    fetchOrders();
-  };
-
-  const handleAutoPortfolioUpload = async (e: any) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !selectedProject) return;
-    
-    setUploadingPortfolio(true);
-    const uploadedImages: string[] = [];
-    
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `portfolio-${Date.now()}-${i}.${fileExt}`;
-        const filePath = `portfolios/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('assets')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          showToast(`Gagal mengunggah gambar: ${uploadError.message}`, "error");
-          continue;
-        }
-
-        const { data: { publicUrl } } = supabase.storage.from('assets').getPublicUrl(filePath);
-        uploadedImages.push(publicUrl);
-      }
-
-      if (uploadedImages.length === 0) throw new Error("Tidak ada gambar yang diunggah");
-
-      const title = getProjectTitle(selectedProject).split(' — ')[1] || getProjectTitle(selectedProject);
-      const category = selectedProject.store_services?.category || selectedProject.store_products?.category || "Logo Design";
-      const description = `Portofolio untuk proyek ${getProjectTitle(selectedProject)}. Dibuat untuk ${getClientName(selectedProject)}.`;
-      
-      const { error: insertError } = await supabase.from("store_portfolios").insert({
-        order_id: selectedProject.id,
-        user_id: selectedProject.user_id,
-        title,
-        category,
-        description,
-        images: uploadedImages,
-        is_published: true,
-        tags: category ? category.toLowerCase().split(' ') : ["design"]
-      });
-
-      if (insertError) throw insertError;
-
-      showToast("Portofolio berhasil dipublikasikan!", "success");
-      
-      const { data: newPortfolio } = await supabase.from("store_portfolios").select("*").eq("order_id", selectedProject.id).single();
-      if (newPortfolio) {
-        setSelectedProject((prev: any) => ({ ...prev, portfolio: newPortfolio }));
-      }
-      
-      fetchOrders();
-    } catch (err: any) {
-      showToast(err.message || "Gagal membuat portofolio otomatis", "error");
-    } finally {
-      setUploadingPortfolio(false);
-      if (e.target) e.target.value = "";
-    }
-  };
-
-  const deleteOrder = async (id: string) => {
+  const deleteProject = async (id: string) => {
+    if (!confirm("Hapus proyek ini secara permanen?")) return;
     const { error } = await supabase.from("store_orders").delete().eq("id", id);
-    if (error) return showToast("Gagal menghapus proyek", "error");
-    showToast("Proyek dihapus", "success");
-    setIsDetailModalOpen(false);
-    fetchOrders();
+    if (error) showToast("Gagal menghapus", "error");
+    else { showToast("Selesai dihapus", "success"); setIsSlideOpen(false); fetchOrders(); }
   };
 
-  const openDetailModal = (project: any) => {
-    setSelectedProject(project);
-    setIsDetailModalOpen(true);
-    setAdditionalCharges([]);
-    supabase
-      .from("order_additional_charges")
-      .select("id, description, amount")
-      .eq("order_id", project.id)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => setAdditionalCharges(data || []));
-  };
-
-  const openEditModal = (project: any) => {
-    setSelectedProject(project);
-    const fd = getFormData(project);
-    setEditFormData({
-      status: project.status,
-      total_amount: project.total_amount,
-      payment_method: project.payment_method || "",
-      progress: project.progress ?? 0,
-      customer_name: getClientName(project),
-      customer_email: getClientEmail(project) === "(Guest via WhatsApp)" ? "" : (getClientEmail(project) || ""),
-      whatsapp: getClientWhatsapp(project) || "",
-      project_title: fd["project_title"] || fd["Project Title"] || fd["Nama Logo"] || fd["nama_logo"] || "",
-      service_id: project.service_id || "",
-      product_id: project.product_id || "",
-      selected_package: typeof project.selected_package === "object" ? JSON.stringify(project.selected_package, null, 2) : (project.selected_package || ""),
-    });
-    setIsDetailModalOpen(false);
-    setIsEditModalOpen(true);
-  };
-
-  const handleUpdateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProject || updating) return;
-    setUpdating(true);
-    const currentFd = getFormData(selectedProject);
-    const updatedFd = {
-      ...currentFd,
-      customer_name: editFormData.customer_name,
-      customer_email: editFormData.customer_email,
-      whatsapp: editFormData.whatsapp,
-      "Project Title": editFormData.project_title,
-      project_title: editFormData.project_title,
-      custom_item_name: editFormData.custom_item_name || undefined,
-      custom_package_name: editFormData.custom_package_name || undefined,
-    };
-    const resolvedPackage = editFormData.service_id || editFormData.product_id
-      ? editFormData.selected_package
-      : editFormData.custom_package_name || editFormData.selected_package || null;
-    
-    const updatePayload: any = {
-      status: editFormData.status,
-      total_amount: editFormData.total_amount,
-      payment_method: editFormData.payment_method,
-      progress: editFormData.progress,
-      form_data: updatedFd,
-      service_id: editFormData.service_id || null,
-      product_id: editFormData.product_id || null,
-      selected_package: resolvedPackage,
-    };
-
-    if (selectedProject?.guest_name || selectedProject?.guest_phone) {
-      updatePayload.guest_name = editFormData.customer_name;
-      updatePayload.guest_phone = editFormData.whatsapp;
-    }
-
-    const { error } = await supabase.from("store_orders")
-      .update(updatePayload)
-      .eq("id", selectedProject.id);
-    if (error) { showToast(error.message, "error"); }
-    else { showToast("Proyek diperbarui", "success"); setIsEditModalOpen(false); fetchOrders(); }
-    setUpdating(false);
-  };
-
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (creatingProject) return;
-    if (!createFormData.service_id || !createFormData.selected_package || !createFormData.title || !createFormData.total_amount) {
-      return showToast("Layanan, Paket, Judul, dan Jumlah wajib diisi", "error");
-    }
-    setCreatingProject(true);
+  const generateTestimonial = async (id: string) => {
     try {
-      const orderNumber = `MANUAL-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.random().toString(36).substring(2,7).toUpperCase()}`;
-      const { error } = await supabase.from("store_orders").insert({
-        order_number: orderNumber,
-        status: createFormData.status,
-        total_amount: parseInt(createFormData.total_amount) || 0,
-        payment_method: "Manual",
-        form_data: { "Project Title": createFormData.title, project_title: createFormData.title, customer_name: createFormData.client_name },
-        user_id: createFormData.user_id || null,
-        service_id: createFormData.service_id,
-        selected_package: createFormData.selected_package
-      });
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("store_orders").update({ testimonial_link_generated_at: now }).eq("id", id);
       if (error) throw error;
-      showToast("Proyek berhasil dibuat", "success");
-      setIsCreateModalOpen(false);
-      setCreateFormData({ title: "", client_name: "", total_amount: "", status: "pending", user_id: "", service_id: "", selected_package: null });
-      fetchOrders();
-    } catch (error: any) {
-      showToast(error.message, "error");
+      navigator.clipboard.writeText(`${window.location.origin}/testimonials/submit/${id}`);
+      showToast("Link testimoni disalin! Berlaku 7 hari.", "success");
+    } catch { showToast("Gagal generate link", "error"); }
+  };
+
+  const handleSendEmail = async () => {
+    if (!sendTemplateId) return showToast("Pilih template email", "error");
+    const toEmail = getClientEmail(selectedProject);
+    if (!toEmail) return showToast("Klien tidak memiliki email", "error");
+    
+    setSendingEmail(true);
+    try {
+      const placeholders: Record<string, string> = {
+        nama_klien: getClientName(selectedProject),
+        nama: getClientName(selectedProject),
+        nama_proyek: getProjectTitle(selectedProject),
+        email: toEmail,
+        no_hp: getClientWhatsApp(selectedProject),
+        invoice: selectedProject.order_number,
+        nama_layanan: getServiceTitle(selectedProject),
+        paket: getPackageName(selectedProject),
+        total_harga: String(Number(selectedProject.total_amount || 0) + (allCharges[selectedProject.id] || 0)),
+      };
+
+      const formData = new FormData();
+      formData.append("to", toEmail);
+      formData.append("isBroadcast", "false");
+      if (sendFromId) formData.append("fromDomainId", sendFromId);
+      formData.append("templateId", sendTemplateId);
+      formData.append("placeholders", JSON.stringify(placeholders));
+      if (sendAttachment) formData.append("attachment", sendAttachment);
+
+      const res = await fetch("/api/email/send", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Gagal mengirim email");
+      showToast("Email terkirim!", "success");
+      setSendAttachment(null); setSendTemplateId(""); setSendFromId("");
+      setModalView("detail");
+    } catch (err: any) {
+      showToast(err.message, "error");
     } finally {
-      setCreatingProject(false);
+      setSendingEmail(false);
     }
+  };
+
+  const handleSaveEdit = async () => {
+    const { error } = await supabase.from("store_orders").update(editFormData).eq("id", selectedProject.id);
+    if (error) showToast("Gagal menyimpan", "error");
+    else { showToast("Perubahan disimpan", "success"); fetchOrders(); setModalView("detail"); }
+  };
+
+  const openSlide = (o: any, v: "detail" | "email" | "edit" = "detail") => {
+    setSelectedProject(o);
+    if (v === "edit") {
+      setEditFormData({
+        status: o.status,
+        total_amount: o.total_amount,
+        discount_amount: o.discount_amount || 0,
+      });
+    }
+    const defaultDomain = domains.find(d => d.is_default)?.id || "";
+    setSendFromId(defaultDomain);
+    setModalView(v);
+    setIsSlideOpen(true);
   };
 
   const filtered = orders.filter(o => {
-    const itemTitle = getProjectTitle(o).toLowerCase();
-    const clientName = getClientName(o).toLowerCase();
-    const matchesSearch = o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-      itemTitle.includes(search.toLowerCase()) ||
-      clientName.includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-    const matchesTab = tab === "all" || (tab === "shop" && o.product_id) || (tab === "service" && o.service_id);
-    return matchesSearch && matchesStatus && matchesTab;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      getProjectTitle(o).toLowerCase().includes(q) ||
+      getClientName(o).toLowerCase().includes(q) ||
+      getServiceTitle(o).toLowerCase().includes(q) ||
+      getPackageName(o).toLowerCase().includes(q) ||
+      (o.order_number as string)?.toLowerCase().includes(q)
+    );
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const allYears = Array.from(new Set(orders.map(o => new Date(o.created_at as string).getFullYear()))).sort((a, b) => a - b);
+  const tableFiltered = filtered.filter(o => new Date(o.created_at as string).getFullYear() === selectedYear);
 
-  const statusColors: Record<string, string> = {
-    pending: "bg-amber-50 text-amber-700 border-amber-100",
-    waiting_payment: "bg-yellow-50 text-yellow-700 border-yellow-100",
-    paid: "bg-indigo-50 text-primary border-indigo-100",
-    processing: "bg-blue-50 text-blue-700 border-blue-100",
-    completed: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    cancelled: "bg-red-50 text-red-700 border-red-100",
+  const groupByMonth = (rows: Record<string, unknown>[]) => {
+    const groups: Record<string, { label: string; rows: Record<string, unknown>[]; key: string }> = {};
+    const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    months.forEach((m, idx) => {
+      const key = `${selectedYear}-${String(idx + 1).padStart(2, "0")}`;
+      groups[key] = { label: `${m} ${selectedYear}`, rows: [], key };
+    });
+    rows.forEach(o => {
+      const d = new Date(o.created_at as string);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (groups[key]) groups[key].rows.push(o);
+    });
+    return Object.values(groups).filter(g => g.rows.length > 0).sort((a, b) => b.key.localeCompare(a.key));
   };
 
-  const inputClass = "w-full bg-slate-50 border-0 text-slate-900 text-sm font-medium rounded-xl focus:ring-2 focus:ring-primary/20 p-3 transition-all outline-none";
+  const COLUMNS = [
+    { key: "no",      label: "N°",             icon: null,                                   width: "w-10" },
+    { key: "proyek",  label: "Nama Proyek",    icon: <FileText className="w-3 h-3" />,       width: "w-48" },
+    { key: "klien",   label: "Nama Klien",     icon: <span>👤</span>,                        width: "w-40" },
+    { key: "wa",      label: "WhatsApp Klien", icon: <Phone className="w-3 h-3" />,          width: "w-40" },
+    { key: "layanan", label: "Layanan",        icon: <span>🛍️</span>,                       width: "w-52" },
+    { key: "harga",   label: "Total Harga",    icon: <span>💰</span>,                        width: "w-32" },
+    { key: "status",  label: "Status",         icon: <span>🕐</span>,                        width: "w-36" },
+    { key: "aksi",    label: "Aksi",           icon: <span>⚙️</span>,                        width: "w-16" },
+  ];
 
-  // Calculation for Cards
-  const completedStats = orders.filter(o => ['paid', 'processing', 'completed'].includes(o.status));
+  function TableRow({ o, idx }: { o: Record<string, unknown>; idx: number }) {
+    const id = o.id as string;
+    const isSaving = saving[id];
+    const serviceId = (o.service_id as string) || "";
+    const pkgName = getPackageName(o);
+    return (
+      <tr className="group border-b border-slate-100/60 hover:bg-slate-50/70 transition-colors">
+        <td className="px-3 py-2 text-slate-400 text-xs select-none w-10 text-center">{idx}</td>
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <FileText className="w-3 h-3 text-slate-300 shrink-0" />
+            <InlineText value={getProjectTitle(o)} placeholder="Nama proyek..." onChange={v => { const fd = getFormData(o); updateFormField(id, o, { form_data: { ...fd, project_title: v, "Project Title": v } }); }} />
+            {isSaving && <Loader2 className="w-3 h-3 animate-spin text-primary ml-1 shrink-0" />}
+          </div>
+        </td>
+        <td className="px-3 py-2"><InlineText value={getClientName(o)} onChange={v => { const fd = getFormData(o); const extra: Record<string, unknown> = { form_data: { ...fd, customer_name: v, "Client Name": v } }; if (o.guest_name !== undefined) extra.guest_name = v; updateFormField(id, o, extra); }} /></td>
+        <td className="px-3 py-2"><InlineText value={getClientWhatsApp(o)} placeholder="+62..." onChange={v => { const fd = getFormData(o); const extra: Record<string, unknown> = { form_data: { ...fd, whatsapp: v } }; if (o.guest_phone !== undefined) extra.guest_phone = v; updateFormField(id, o, extra); }} /></td>
+        <td className="px-3 py-2"><InlineLayanan serviceId={serviceId} packageName={pkgName} services={servicesList} onChangeService={(newId: string) => { const newSvc = servicesList.find(s => s.id === newId); updateServiceAndPackage(id, newId, newSvc?.packages?.[0]?.name || "", o); }} onChangePackage={(newPkg: string) => updateServiceAndPackage(id, serviceId, newPkg, o)} /></td>
+        <td className="px-3 py-2"><InlineNumber value={Number(o.total_amount || 0) + (allCharges[id as string] || 0)} onChange={v => updateField(id, "total_amount", Math.max(0, v - (allCharges[id as string] || 0)))} /></td>
+        <td className="px-3 py-2"><InlineStatus value={(o.status as string) || "pending"} onChange={v => updateField(id, "status", v)} /></td>
+        <td className="px-3 py-2 text-center">
+           <button onClick={(e) => { e.stopPropagation(); openSlide(o); }} className="p-1.5 text-slate-400 hover:text-primary hover:bg-indigo-50 rounded-lg transition-colors inline-block" title="Lihat Detail">
+             <Eye className="w-4 h-4" />
+           </button>
+        </td>
+      </tr>
+    );
+  }
 
-  const clientStats: Record<string, { count: number; amount: number; name: string }> = {};
-  let topClient = { name: "Belum ada pesanan", count: 0, amount: 0 };
-  
-  const itemStats: Record<string, { count: number; amount: number; name: string }> = {};
-  let topItem = { name: "Belum ada pesanan", count: 0, amount: 0 };
+  function GroupedTable({ groups, footer }: { groups: any[]; footer?: React.ReactNode }) {
+    return (
+      <div className="flex flex-col flex-1 bg-white ring-1 ring-slate-100 rounded-2xl overflow-hidden shadow-sm mt-4">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left min-w-[960px]">
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100">
+              <tr>{COLUMNS.map(col => (<th key={col.key} className={`px-3 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap ${col.width}`}><span className="flex items-center gap-1.5">{col.icon}{col.label}</span></th>))}</tr>
+            </thead>
+            <tbody>
+              {groups.map((group: any) => {
+                const expanded = expandedGroups[group.key] ?? true;
+                const groupTotal = group.rows.reduce((s: number, o: any) => s + Number(o.total_amount || 0) + (allCharges[o.id] || 0), 0);
+                return (
+                  <React.Fragment key={group.key}>
+                    <tr className="bg-white hover:bg-slate-50/50 cursor-pointer transition-colors border-b border-slate-50" onClick={() => setExpandedGroups(e => ({...e, [group.key]: !expanded}))}>
+                      <td colSpan={COLUMNS.length} className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {expanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                          <span className="text-sm font-bold text-slate-800">{group.label}</span>
+                          <span className="text-xs text-slate-400 font-medium ml-2 bg-slate-100 px-2 py-0.5 rounded-full">{group.rows.length} Data</span>
+                          <span className="text-xs font-bold text-primary ml-auto pr-4">{IDR_FULL(groupTotal)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && group.rows.map((o: any, i: number) => <TableRow key={o.id as string} o={o} idx={i + 1} />)}
+                  </React.Fragment>
+                );
+              })}
+              {groups.length === 0 && (
+                <tr><td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-slate-400 font-medium text-sm">Belum ada proyek yang ditemukan.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {footer}
+      </div>
+    );
+  }
 
-  const currentMonthIdx = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  let monthlyOrderCount = 0;
-  let monthlyOrderAmount = 0;
-
-  let totalOrderCount = completedStats.length;
-  let totalOrderAmount = 0;
-
-  completedStats.forEach(o => {
-    const amt = Number(o.total_amount || 0) + (o.charges?.reduce((acc: any, c: any) => acc + Number(c.amount || 0), 0) || 0);
-    totalOrderAmount += amt;
-
-    const d = new Date(o.created_at);
-    if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-      monthlyOrderCount++;
-      monthlyOrderAmount += amt;
-    }
-
-    const cName = getClientName(o);
-    if (!clientStats[cName]) clientStats[cName] = { count: 0, amount: 0, name: cName };
-    clientStats[cName].count++;
-    clientStats[cName].amount += amt;
-    if (clientStats[cName].count > topClient.count) topClient = clientStats[cName];
-
-    const iName = o.store_services?.title || o.store_products?.title || "Proyek";
-    if (!itemStats[iName]) itemStats[iName] = { count: 0, amount: 0, name: iName };
-    itemStats[iName].count++;
-    itemStats[iName].amount += amt;
-    if (itemStats[iName].count > topItem.count) topItem = itemStats[iName];
-  });
+  const pagedGroups = (groups: any[]) => {
+    let count = 0; const result = [];
+    for (const g of groups) {
+      const start = (page - 1) * PAGE_SIZE; const end = page * PAGE_SIZE;
+      if (count >= end) break;
+      const rowsInRange = g.rows.slice(Math.max(0, start - count), end - count);
+      count += g.rows.length;
+      if (rowsInRange.length > 0) result.push({ ...g, rows: rowsInRange });
+    } return result;
+  };
 
   return (
-    <div className="pt-6 px-4 pb-16">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="flex flex-col min-h-screen pt-4 pb-16 px-4 sm:px-6">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manajemen Proyek</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Kelola semua pesanan dan permintaan layanan yang masuk.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            {(["all", "shop", "service"] as const).map(t => (
-              <button key={t} onClick={() => { setTab(t); setPage(1); }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${tab === t ? "bg-white text-primary shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>
-                {t === "all" ? "Semua" : t === "shop" ? "Toko" : "Layanan"}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-sm shadow-indigo-200 transition-colors">
-            <Briefcase className="w-4 h-4" /> Proyek Baru
-          </button>
+          <p className="text-sm font-medium text-slate-500 mt-1">Kelola semua pesanan, klien, dan layanan di satu tempat.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { title: "Klien Teratas", value: topClient.name, tag: `${topClient.count} Pesanan • Rp ${topClient.amount.toLocaleString("id-ID")}`, icon: Users, color: "text-primary" },
-          { title: "Layanan/Toko Teratas", value: topItem.name, tag: `${topItem.count} Pesanan • Rp ${topItem.amount.toLocaleString("id-ID")}`, icon: TrendingUp, color: "text-blue-500" },
-          { title: "Pesanan Bulanan", value: `${monthlyOrderCount} Pesanan`, tag: `Rp ${monthlyOrderAmount.toLocaleString("id-ID")}`, icon: Calendar, color: "text-emerald-500" },
-          { title: "Total Pesanan", value: `${totalOrderCount} Pesanan`, tag: `Rp ${totalOrderAmount.toLocaleString("id-ID")}`, icon: Wallet, color: "text-amber-500" },
+          { title: "Klien Teratas", value: stats.topClient.name, tag: `${stats.topClient.count} Pesanan • ${IDR(stats.topClient.amount)}`, icon: Users, color: "text-primary", bg: "bg-indigo-50" },
+          { title: "Layanan Teratas", value: stats.topItem.name, tag: `${stats.topItem.count} Pesanan • ${IDR(stats.topItem.amount)}`, icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-50" },
+          { title: "Pesanan Bulanan", value: `${stats.monthlyOrderCount} Pesanan`, tag: `${IDR(stats.monthlyOrderAmount)} Bulan ini`, icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-50" },
+          { title: "Total Pesanan", value: `${stats.totalOrderCount} Pesanan`, tag: `${IDR(stats.totalOrderAmount)} Keseluruhan`, icon: Wallet, color: "text-amber-500", bg: "bg-amber-50" },
         ].map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 ring-1 ring-slate-100 shadow-sm transition-all hover:shadow-md">
-            <div className="flex items-center gap-2 mb-3 text-slate-500">
-              <s.icon className={`w-4 h-4 ${s.color}`} />
-              <h3 className="text-sm font-bold">{s.title}</h3>
-            </div>
-            <span className="text-xl font-bold text-slate-900 block mb-2 line-clamp-1" title={s.value}>{s.value}</span>
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">{s.tag}</p>
+          <div key={i} className="bg-white rounded-2xl p-5 ring-1 ring-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-all hover:shadow-md">
+             <div className="flex items-center gap-3 mb-3 text-slate-500">
+               <div className={`p-2 rounded-xl ${s.bg}`}><s.icon className={`w-4 h-4 ${s.color}`} /></div>
+               <h3 className="text-sm font-bold truncate">{s.title}</h3>
+             </div>
+             <span className="text-xl font-bold text-slate-900 block mb-1.5 truncate">{s.value}</span>
+             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{s.tag}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden">
-        <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-slate-100">
-          <div className="relative flex-1">
+      <div className="flex items-center justify-between gap-4 mt-2 mb-2">
+         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Cari berdasarkan ID pesanan, nama proyek, atau klien..."
-              className="w-full bg-slate-50 border-0 rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
-          </div>
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="bg-slate-50 border-0 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 min-w-[160px] outline-none focus:ring-2 focus:ring-primary/20">
-            <option value="all">Semua Status</option>
-            <option value="pending">Menunggu</option>
-            <option value="waiting_payment">Menunggu Pembayaran</option>
-            <option value="paid">Dibayar</option>
-            <option value="processing">Diproses</option>
-            <option value="completed">Selesai</option>
-            <option value="cancelled">Dibatalkan</option>
-          </select>
-        </div>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari pesanan..."
+              className="pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 w-full sm:w-64 shadow-sm font-medium" />
+         </div>
+      </div>
 
-        {loading ? (
-          <div className="flex justify-center py-24"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-            <Briefcase className="w-10 h-10 mb-3 text-slate-200" />
-            <p className="text-sm font-bold">Proyek tidak ditemukan</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-100 bg-slate-50/50">
-                    <th className="px-6 py-4">Info Pesanan</th>
-                    <th className="px-6 py-4">Klien</th>
-                    <th className="px-6 py-4">Jumlah</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginated.map(o => (
-                    <tr key={o.id} className="hover:bg-slate-50/60 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-slate-400">
-                            {o.service_id ? <Briefcase className="w-4 h-4" /> : <Package className="w-4 h-4" />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-slate-900 max-w-[260px] truncate">{getProjectTitle(o)}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">#{o.order_number}</p>
-                            <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Calendar className="w-3 h-3" /> {new Date(o.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                            </p>
-                          </div>
+      {loading ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      ) : (
+        <GroupedTable groups={groupByMonth(tableFiltered)} footer={<YearNavigator years={allYears.length > 0 ? allYears : [CURRENT_YEAR]} selectedYear={selectedYear} onSelect={y => { setSelectedYear(y); setExpandedGroups({}); }} />} />
+      )}
+
+      {/* Detail Right Slide Modal */}
+      {isSlideOpen && selectedProject && createPortal((
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setIsSlideOpen(false)} />
+          <div className="w-full max-w-md bg-white h-full shadow-2xl relative z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div>
+                   <h2 className="text-base font-bold text-slate-900">
+                     {modalView === 'detail' && "Detail Proyek"}
+                     {modalView === 'email' && "Kirim Email"}
+                     {modalView === 'edit' && "Edit Proyek"}
+                   </h2>
+                   <p className="text-[10px] font-mono text-slate-400 mt-0.5">#{selectedProject.order_number}</p>
+                </div>
+                <button onClick={() => setIsSlideOpen(false)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+             </div>
+
+             <div className="p-6 flex-1 overflow-y-auto bg-white">
+                {modalView === "detail" && (
+                   <div className="space-y-6">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Informasi Utama</p>
+                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-3">
+                           <div className="flex justify-between items-start border-b border-slate-200/60 pb-3">
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium mb-0.5">Judul Proyek</p>
+                                <p className="text-sm font-bold text-slate-900 leading-tight">{getProjectTitle(selectedProject)}</p>
+                              </div>
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium mb-0.5">Layanan</p>
+                                <p className="text-sm font-semibold text-slate-800">{getServiceTitle(selectedProject)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-500 font-medium mb-0.5">Paket</p>
+                                <p className="text-sm font-semibold text-indigo-600">{getPackageName(selectedProject) || "—"}</p>
+                              </div>
+                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                            {getClientInitial(o)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-slate-900">{getClientName(o)}</p>
-                            <p className="text-[10px] text-slate-400 font-medium">
-                              {o.client ? "Pengguna terdaftar" : "Klien offline"}
-                            </p>
-                          </div>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Klien</p>
+                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4">
+                           <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-primary font-bold">
+                             {getClientName(selectedProject).charAt(0).toUpperCase()}
+                           </div>
+                           <div className="min-w-0 flex-1">
+                             <p className="text-sm font-bold text-slate-900 truncate">{getClientName(selectedProject)}</p>
+                             <p className="text-xs text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                               <Phone className="w-3 h-3" /> {getClientWhatsApp(selectedProject)}
+                             </p>
+                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-slate-900">
-                          Rp {Number(o.total_amount || 0).toLocaleString("id-ID")}
-                          {o.charges && o.charges.length > 0 && ` + ${o.charges.reduce((a: any, c: any) => a + Number(c.amount), 0).toLocaleString("id-ID")}`}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">
-                          {o.payment_method || "—"}
-                          {o.charges && o.charges.length > 0 ? ` + ${o.charges.length}x Biaya Tambahan` : ""}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <select 
-                          value={o.status}
-                          onChange={(e) => updateStatus(o.id, e.target.value)}
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg shadow-sm border appearance-none outline-none cursor-pointer focus:ring-2 focus:ring-primary/20 ${statusColors[o.status] || "bg-slate-50 text-slate-500 border-slate-100"}`}
-                        >
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</p>
+                            <span className={`inline-block px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${STATUS_CONFIG[selectedProject.status]?.bg ? '' : 'bg-slate-100 text-slate-500'}`} style={{ backgroundColor: STATUS_CONFIG[selectedProject.status]?.bg, color: STATUS_CONFIG[selectedProject.status]?.color, borderColor: STATUS_CONFIG[selectedProject.status]?.color + '40' }}>
+                              {STATUS_CONFIG[selectedProject.status]?.label || selectedProject.status}
+                            </span>
+                         </div>
+                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total</p>
+                            <p className="text-sm font-bold text-slate-900">{IDR_FULL(Number(selectedProject.total_amount || 0) + (allCharges[selectedProject.id] || 0))}</p>
+                         </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                         <button onClick={() => setModalView("email")} className="w-full flex items-center justify-between p-3 rounded-xl bg-[#a698ff]/10 text-[#715cff] hover:bg-[#a698ff]/20 transition-colors border border-[#a698ff]/20">
+                           <span className="flex items-center gap-2 text-sm font-bold"><Mail className="w-4 h-4" /> Kirim Email</span>
+                           <ChevronRight className="w-4 h-4 opacity-50" />
+                         </button>
+                         <Link href={`/workspace/${selectedProject.id}`} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
+                           <span className="flex items-center gap-2 text-sm font-bold"><MessageSquare className="w-4 h-4 text-slate-400" /> Buka Ruang Kerja</span>
+                           <ExternalLink className="w-3.5 h-3.5 opacity-50" />
+                         </Link>
+                         <button onClick={() => generateTestimonial(selectedProject.id)} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
+                           <span className="flex items-center gap-2 text-sm font-bold"><Star className="w-4 h-4 text-amber-400" /> Salin Link Testimoni</span>
+                           <Copy className="w-3.5 h-3.5 opacity-50" />
+                         </button>
+                         <div className="grid grid-cols-2 gap-2 mt-2">
+                           <button onClick={() => setModalView("edit")} className="w-full flex justify-center items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-colors">
+                              <Edit3 className="w-3.5 h-3.5" /> Edit
+                           </button>
+                           <button onClick={() => deleteProject(selectedProject.id)} className="w-full flex justify-center items-center gap-2 p-2.5 rounded-xl bg-white border border-rose-100 hover:bg-rose-50 text-rose-500 text-xs font-bold transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" /> Hapus
+                           </button>
+                         </div>
+                      </div>
+                   </div>
+                )}
+
+                {modalView === "email" && (
+                   <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex items-start gap-3 mb-2">
+                        <Mail className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold text-indigo-900 mb-0.5">Kirim ke: {getClientName(selectedProject)}</p>
+                          <p className="text-[11px] text-indigo-700/80 font-medium break-all">{getClientEmail(selectedProject) || <span className="text-rose-500">Email tidak ditemukan!</span>}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Kirim Dari Domain</label>
+                         <div className="relative">
+                            <select value={sendFromId} onChange={e => setSendFromId(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold outline-none appearance-none focus:ring-2 focus:ring-[#715cff]/30 focus:border-[#715cff]">
+                              <option value="">— Gunakan domain default —</option>
+                              {domains.map(d => <option key={d.id} value={d.id}>{d.display_name} ({d.domain})</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                         </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Template</label>
+                         <div className="relative">
+                            <select value={sendTemplateId} onChange={e => setSendTemplateId(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold outline-none appearance-none focus:ring-2 focus:ring-[#715cff]/30 focus:border-[#715cff]">
+                              <option value="">— Pilih template —</option>
+                              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                         </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2">
+                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Lampiran (ZIP/RAR saja)</label>
+                         <div className="flex items-center gap-3">
+                            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold transition-all">
+                               <Paperclip className="w-4 h-4" /> Pilih File
+                               <input type="file" className="hidden" accept=".zip,.rar" onChange={e => setSendAttachment(e.target.files?.[0] || null)} />
+                            </label>
+                            {sendAttachment && <span className="text-xs font-medium text-slate-500 truncate">{sendAttachment.name}</span>}
+                         </div>
+                      </div>
+
+                      <div className="pt-6 flex items-center gap-3 border-t border-slate-100 mt-6">
+                         <button onClick={() => setModalView("detail")} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors">Batal</button>
+                         <button onClick={handleSendEmail} disabled={sendingEmail || !getClientEmail(selectedProject)} className="flex-1 py-3 bg-[#a698ff] hover:bg-[#8f7fff] disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-sm">
+                           {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Kirim Email
+                         </button>
+                      </div>
+                   </div>
+                )}
+                
+                {modalView === "edit" && (
+                   <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 mb-1 block">Status</label>
+                        <select value={editFormData.status} onChange={e => setEditFormData({...editFormData, status: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none">
                           <option value="pending">Menunggu</option>
-                          <option value="waiting_payment">Menunggu Pembayaran</option>
+                          <option value="waiting_payment">Belum Dibayar</option>
                           <option value="paid">Dibayar</option>
-                          <option value="processing">Diproses</option>
+                          <option value="processing">Dikerjakan</option>
                           <option value="completed">Selesai</option>
                           <option value="cancelled">Dibatalkan</option>
                         </select>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => openDetailModal(o)}
-                            className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-primary transition-colors" title="Lihat Detail">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <Link href={`/workspace/${o.id}`}
-                            className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-primary transition-colors" title="Buka Ruang Kerja">
-                            <MessageSquare className="w-4 h-4" />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-                <p className="text-xs text-slate-400 font-medium">
-                  Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} pesanan
-                </p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 transition-colors">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                    .reduce<(number | "...")[]>((acc, p, i, arr) => {
-                      if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push("...");
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((p, i) => p === "..." ? (
-                      <span key={`ellipsis-${i}`} className="px-2 text-slate-400 text-sm">…</span>
-                    ) : (
-                      <button key={p} onClick={() => setPage(p as number)}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${page === p ? "bg-primary text-white shadow-sm" : "hover:bg-slate-100 text-slate-600"}`}>
-                        {p}
-                      </button>
-                    ))}
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 transition-colors">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {isDetailModalOpen && selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Detail Pesanan</h3>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">#{selectedProject.order_number}</p>
-              </div>
-              <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Proyek</p>
-                  <p className="text-sm font-bold text-slate-900">{getProjectTitle(selectedProject)}</p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</p>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border ${statusColors[selectedProject.status] || "bg-slate-50 text-slate-500 border-slate-100"}`}>
-                    {selectedProject.status.replace("_", " ").replace("pending", "menunggu").replace("waiting payment", "menunggu pembayaran").replace("paid", "dibayar").replace("processing", "diproses").replace("completed", "selesai").replace("cancelled", "dibatalkan")}
-                  </span>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jumlah</p>
-                  <p className="text-sm font-bold text-slate-900">
-                    Rp {Number(selectedProject.total_amount || 0).toLocaleString("id-ID")}
-                    {selectedProject.charges && selectedProject.charges.length > 0 && ` + ${selectedProject.charges.reduce((a: any, c: any) => a + Number(c.amount), 0).toLocaleString("id-ID")}`}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    {selectedProject.payment_method || "—"}
-                    {selectedProject.charges && selectedProject.charges.length > 0 ? ` + ${selectedProject.charges.length}x Biaya Tambahan` : ""}
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</p>
-                  <p className="text-sm font-bold text-slate-900">
-                    {new Date(selectedProject.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Informasi Klien</p>
-                <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                      {getClientInitial(selectedProject)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{getClientName(selectedProject)}</p>
-                      <p className="text-[10px] text-slate-400">{selectedProject.client ? "Pengguna terdaftar" : "Klien offline"}</p>
-                    </div>
-                  </div>
-                  {getClientEmail(selectedProject) && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-xs font-medium">{getClientEmail(selectedProject)}</span>
-                    </div>
-                  )}
-                  {getClientWhatsapp(selectedProject) && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-xs font-medium">{getClientWhatsapp(selectedProject)}</span>
-                    </div>
-                  )}
-                  {selectedProject.client?.id && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono text-[10px] text-slate-400">{selectedProject.client.id}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Portofolio</p>
-                  {!selectedProject.portfolio ? (
-                    <div className="relative">
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingPortfolio}
-                        className="p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-indigo-300 hover:text-primary transition-all flex flex-col items-center justify-center gap-2 group w-full text-left min-h-[120px] relative overflow-hidden"
-                      >
-                        {uploadingPortfolio ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                            <p className="text-[10px] font-bold text-slate-400">Mengunggah...</p>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-slate-200 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
-                              <Plus className="w-4 h-4 group-hover:text-primary" />
-                            </div>
-                            <div className="text-center">
-                               <p className="text-xs font-bold">Belum Dipublikasikan</p>
-                               <p className="text-[10px] font-medium opacity-80 mt-0.5">Klik untuk unggah hasil</p>
-                            </div>
-                          </>
-                        )}
-                      </button>
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        className="hidden" 
-                        ref={fileInputRef}
-                        onChange={handleAutoPortfolioUpload}
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700 min-h-[120px]">
-                      <div className="space-y-3 w-full">
-                         <div className="flex items-center gap-2 mb-2">
-                           <Briefcase className="w-4 h-4 text-emerald-500 shrink-0" />
-                           <p className="text-xs font-bold leading-none">Terpublikasi</p>
-                         </div>
-                         {Array.isArray(selectedProject.portfolio.images) && selectedProject.portfolio.images.length > 0 ? (
-                            <div className="w-full aspect-video rounded-lg overflow-hidden border border-emerald-200 shadow-sm relative group">
-                              <img 
-                                src={selectedProject.portfolio.images[0]} 
-                                alt="Portfolio Preview" 
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                              />
-                              {selectedProject.portfolio.images.length > 1 && (
-                                <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-sm">
-                                  +{selectedProject.portfolio.images.length - 1}
-                                </div>
-                              )}
-                            </div>
-                         ) : (
-                           <div className="w-full aspect-video rounded-lg bg-emerald-100/50 flex items-center justify-center border border-emerald-200 border-dashed">
-                             <span className="text-[10px] font-medium opacity-60">Tidak ada gambar</span>
-                           </div>
-                         )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Testimonial</p>
-                  <div className={`p-4 rounded-xl border flex flex-col justify-center gap-3 ${selectedProject.testimonial ? 'bg-indigo-50 border-indigo-100 text-primary' : 'bg-slate-50 border-slate-100 text-slate-500'} min-h-[120px]`}>
-                    {selectedProject.testimonial ? (
-                      <div className="space-y-3 w-full">
-                         <div className="flex items-center gap-2 mb-2">
-                           <Star className="w-4 h-4 text-primary shrink-0 fill-primary" />
-                           <p className="text-xs font-bold leading-none">Diterima</p>
-                        </div>
-                        <div className="bg-white/60 p-3 rounded-lg border border-indigo-100/50 relative">
-                           <span className="absolute -top-2 -left-1 text-2xl text-indigo-300 font-serif leading-none">&ldquo;</span>
-                            <p className="text-xs font-medium text-slate-600 italic line-clamp-3 relative z-10 pl-2">
-                             {selectedProject.testimonial.comment || "Teks testimoni kosong."}
-                           </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <Star className="w-5 h-5 text-slate-400 shrink-0" />
-                        <div>
-                           <p className="text-xs font-bold">Belum Diterima</p>
-                           <p className="text-[10px] font-medium opacity-80 mt-0.5">Menunggu penilaian</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-3 flex-wrap">
-              {selectedProject.status === 'completed' && !selectedProject.user_id && !selectedProject.testimonial && (
-                <button 
-                  disabled={updating}
-                  onClick={async () => {
-                    setUpdating(true);
-                    try {
-                      const now = new Date().toISOString();
-                      const { error } = await supabase
-                        .from("store_orders")
-                        .update({ testimonial_link_generated_at: now })
-                        .eq("id", selectedProject.id);
-                      
-                      if (error) throw error;
-                      
-                      navigator.clipboard.writeText(`${window.location.origin}/testimonials/submit/${selectedProject.id}`);
-                      showToast("Link testimoni dibuat dan disalin! Kedaluwarsa dalam 7 hari.", "success");
-                      fetchOrders();
-                    } catch (err: any) {
-                      showToast(err.message || "Failed to generate link", "error");
-                    } finally {
-                      setUpdating(false);
-                    }
-                  }}
-                  className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 py-2.5 rounded-xl text-sm font-bold transition-colors border border-emerald-100 disabled:opacity-50">
-                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PartyPopper className="w-4 h-4" />}
-                  Salin Link Testimoni
-                </button>
-              )}
-              <button onClick={() => openEditModal(selectedProject)}
-                className="flex-1 inline-flex items-center justify-center gap-2 bg-primary hover:bg-secondary text-white py-2.5 rounded-xl text-sm font-bold transition-colors">
-                <Edit className="w-4 h-4" /> Edit Proyek
-              </button>
-              <button
-                onClick={() => { setIsDetailModalOpen(false); deleteOrder(selectedProject.id); }}
-                className="inline-flex items-center justify-center gap-2 px-4 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-sm font-bold transition-colors border border-red-100">
-                <Trash2 className="w-4 h-4" /> Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isEditModalOpen && selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Edit Proyek</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">#{selectedProject.order_number}</p>
-              </div>
-              <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"><X className="w-4 h-4" /></button>
-            </div>
-            <form onSubmit={handleUpdateProject} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Info Pesanan</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Status</label>
-                  <select value={editFormData.status} onChange={e => setEditFormData({ ...editFormData, status: e.target.value })} className={inputClass}>
-                    <option value="pending">Menunggu</option>
-                    <option value="waiting_payment">Menunggu Pembayaran</option>
-                    <option value="paid">Dibayar</option>
-                    <option value="processing">Diproses</option>
-                    <option value="completed">Selesai</option>
-                    <option value="cancelled">Dibatalkan</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Metode Pembayaran</label>
-                  <input type="text" value={editFormData.payment_method} onChange={e => setEditFormData({ ...editFormData, payment_method: e.target.value })} className={inputClass} placeholder="misal: Transfer Bank" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Total Jumlah (IDR)</label>
-                  <input type="number" value={editFormData.total_amount} onChange={e => setEditFormData({ ...editFormData, total_amount: e.target.value })} className={inputClass} />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">Biaya Tambahan</label>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!selectedProject) return;
-                        setChargesSaving(true);
-                        const { error } = await supabase.from("order_additional_charges").insert({ order_id: selectedProject.id, description: "Biaya tambahan", amount: 0 });
-                        if (error) showToast("Gagal menambah biaya", "error");
-                        else {
-                          const { data } = await supabase.from("order_additional_charges").select("id, description, amount").eq("order_id", selectedProject.id).order("created_at", { ascending: true });
-                          setAdditionalCharges(data || []);
-                        }
-                        setChargesSaving(false);
-                      }}
-                      disabled={chargesSaving}
-                      className="inline-flex items-center gap-1.5 text-[10px] font-bold text-primary bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {chargesSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                      Tambah Biaya
-                    </button>
-                  </div>
-                  {additionalCharges.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 italic">Belum ada biaya tambahan.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {additionalCharges.map(c => (
-                        <div key={c.id} className="flex items-center gap-2">
-                          <input
-                            defaultValue={c.amount}
-                            type="number"
-                            onBlur={async e => {
-                              const val = Number(e.target.value);
-                              if (val === c.amount) return;
-                              await supabase.from("order_additional_charges").update({ amount: val }).eq("id", c.id);
-                              setAdditionalCharges(prev => prev.map(x => x.id === c.id ? { ...x, amount: val } : x));
-                            }}
-                            className={`${inputClass} !py-2 !px-3 font-bold`}
-                          />
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!selectedProject) return;
-                              await supabase.from("order_additional_charges").delete().eq("id", c.id);
-                              const { data } = await supabase.from("order_additional_charges").select("id, description, amount").eq("order_id", selectedProject.id).order("created_at", { ascending: true });
-                              setAdditionalCharges(data || []);
-                            }}
-                            className="p-2 bg-red-50 text-red-400 hover:text-red-500 hover:bg-red-100 rounded-xl transition-colors shrink-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-4">Info Klien</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Proyek / Logo</label>
-                    <input type="text" value={editFormData.project_title} onChange={e => setEditFormData({ ...editFormData, project_title: e.target.value })} className={inputClass} placeholder="misal: Logo Kopi Kenangan" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Pelanggan</label>
-                    <input type="text" value={editFormData.customer_name} onChange={e => setEditFormData({ ...editFormData, customer_name: e.target.value })} className={inputClass} placeholder="misal: Budi Santoso" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Email</label>
-                      <input type="email" value={editFormData.customer_email} onChange={e => setEditFormData({ ...editFormData, customer_email: e.target.value })} className={inputClass} placeholder="email@example.com" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">WhatsApp</label>
-                      <input type="text" value={editFormData.whatsapp} onChange={e => setEditFormData({ ...editFormData, whatsapp: e.target.value })} className={inputClass} placeholder="+62 812..." />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-4">Item & Paket Tertaut</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Tipe</label>
-                    <select value={editFormData.product_id ? "product" : editFormData.service_id ? "service" : "none"} onChange={e => {
-                      const v = e.target.value;
-                      if (v === "none") setEditFormData({...editFormData, service_id: "", product_id: "", selected_package: ""});
-                      else if (v === "service") setEditFormData({...editFormData, service_id: servicesList[0]?.id || "", product_id: "", selected_package: ""});
-                      else if (v === "product") setEditFormData({...editFormData, product_id: productsList[0]?.id || "", service_id: "", selected_package: ""});
-                    }} className={inputClass}>
-                      <option value="none">Kustom (Input Manual)</option>
-                      <option value="service">Layanan</option>
-                      <option value="product">Produk Toko</option>
-                    </select>
-                  </div>
-
-                  {!editFormData.product_id && !editFormData.service_id && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Layanan / Item</label>
-                        <input type="text" value={editFormData.custom_item_name || ""} onChange={e => setEditFormData({...editFormData, custom_item_name: e.target.value})} className={inputClass} placeholder="misal: Desain Logo" />
                       </div>
                       <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Paket</label>
-                        <input type="text" value={editFormData.custom_package_name || ""} onChange={e => setEditFormData({...editFormData, custom_package_name: e.target.value})} className={inputClass} placeholder="misal: Standar" />
+                        <label className="text-xs font-bold text-slate-500 mb-1 block">Total Harga Base (Rp)</label>
+                        <input type="number" value={editFormData.total_amount} onChange={e => setEditFormData({...editFormData, total_amount: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none" />
                       </div>
-                    </div>
-                  )}
-
-                  {(editFormData.product_id || editFormData.service_id) && (
-                    <>
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Item</label>
-                        <select value={editFormData.product_id || editFormData.service_id} onChange={e => {
-                          if (editFormData.product_id) setEditFormData({...editFormData, product_id: e.target.value, selected_package: ""});
-                          else setEditFormData({...editFormData, service_id: e.target.value, selected_package: ""});
-                        }} className={inputClass}>
-                          {(editFormData.product_id ? productsList : servicesList).map((x: any) => (
-                            <option key={x.id} value={x.id}>{x.title}</option>
-                          ))}
-                        </select>
+                      <div className="pt-4 flex items-center gap-3 border-t border-slate-100">
+                         <button onClick={() => setModalView("detail")} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors">Batal</button>
+                         <button onClick={handleSaveEdit} className="flex-1 py-3 bg-primary hover:bg-secondary text-white rounded-xl text-sm font-bold flex items-center justify-center transition-colors">
+                           Simpan
+                         </button>
                       </div>
-                       {(() => {
-                        let pkgs: any[] = [];
-                        if (editFormData.product_id) {
-                          const item = productsList.find((x: any) => x.id === editFormData.product_id);
-                          try { pkgs = typeof item?.packages === "string" ? JSON.parse(item.packages) : (item?.packages || []); } catch { pkgs = []; }
-                        } else {
-                          const item = servicesList.find((x: any) => x.id === editFormData.service_id);
-                          pkgs = item?.packages || [];
-                        }
-                        return pkgs.length > 0 ? (
-                          <div>
-                            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Paket</label>
-                            <select value={editFormData.selected_package || ""} onChange={e => {
-                              const p = pkgs.find((x: any) => x.name === e.target.value);
-                              if (p) setEditFormData((prev: any) => ({...prev, selected_package: p.name, total_amount: p.price || prev.total_amount}));
-                            }} className={inputClass}>
-                              <option value="">-- Pilih Paket --</option>
-                              {pkgs.map((p: any) => (
-                                <option key={p.name} value={p.name}>{p.name}{p.price ? ` — Rp${Number(p.price).toLocaleString("id-ID")}` : ""}</option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : null;
-                      })()}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">Batal</button>
-                <button type="submit" disabled={updating} className="flex-1 bg-primary hover:bg-secondary text-white py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Simpan Perubahan"}
-                </button>
-              </div>
-            </form>
+                   </div>
+                )}
+             </div>
           </div>
         </div>
-      )}
-
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Buat Proyek Offline</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">Entri pesanan manual untuk klien offline</p>
-              </div>
-              <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400"><X className="w-4 h-4" /></button>
-            </div>
-            <form onSubmit={handleCreateProject} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Pilih Layanan <span className="text-red-500">*</span></label>
-                <select required value={createFormData.service_id} onChange={e => setCreateFormData({ ...createFormData, service_id: e.target.value, selected_package: null, total_amount: "" })} className={inputClass}>
-                  <option value="">-- Pilih Layanan --</option>
-                  {servicesList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                </select>
-              </div>
-                     {createFormData.service_id && (
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Pilih Paket <span className="text-red-500">*</span></label>
-                  <select required value={createFormData.selected_package?.name || ""} onChange={e => {
-                    const service = servicesList.find(s => s.id === createFormData.service_id);
-                    const pkg = service?.packages?.find((p: any) => p.name === e.target.value);
-                    setCreateFormData({ ...createFormData, selected_package: pkg || null, total_amount: pkg ? String(pkg.price) : createFormData.total_amount });
-                  }} className={inputClass}>
-                    <option value="">-- Pilih Paket --</option>
-                    {servicesList.find(s => s.id === createFormData.service_id)?.packages?.map((p: any) => (
-                      <option key={p.name} value={p.name}>{p.name} — Rp{Number(p.price).toLocaleString("id-ID")}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Proyek / Logo <span className="text-red-500">*</span></label>
-                <input required type="text" value={createFormData.title} onChange={e => setCreateFormData({ ...createFormData, title: e.target.value })} className={inputClass} placeholder="misal: Logo Kopi Kenangan" />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Nama Klien</label>
-                <input type="text" value={createFormData.client_name} onChange={e => setCreateFormData({ ...createFormData, client_name: e.target.value })} className={inputClass} placeholder="misal: Budi Santoso" />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Total Jumlah (IDR) <span className="text-red-500">*</span></label>
-                <input required type="number" value={createFormData.total_amount} onChange={e => setCreateFormData({ ...createFormData, total_amount: e.target.value })} className={inputClass} placeholder="150000" />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Tautkan ke Pengguna Terdaftar (Opsional)</label>
-                <select value={createFormData.user_id} onChange={e => setCreateFormData({ ...createFormData, user_id: e.target.value })} className={inputClass}>
-                  <option value="">-- Tidak Ada Pengguna Tautan --</option>
-                  {usersList.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-                </select>
-              </div>
-                   <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">Status Awal</label>
-                <select value={createFormData.status} onChange={e => setCreateFormData({ ...createFormData, status: e.target.value })} className={inputClass}>
-                  <option value="pending">Menunggu</option>
-                  <option value="processing">Diproses</option>
-                  <option value="completed">Selesai</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">Batal</button>
-                <button type="submit" disabled={creatingProject} className="flex-1 bg-primary hover:bg-secondary text-white py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                  {creatingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buat Proyek"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
