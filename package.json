@@ -20,10 +20,12 @@
     "@tiptap/extension-underline": "^3.20.1",
     "@tiptap/react": "^3.20.1",
     "@tiptap/starter-kit": "^3.20.1",
+    "@types/nodemailer": "^7.0.11",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.35.1",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "nodemailer": "^8.0.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.8.0"
