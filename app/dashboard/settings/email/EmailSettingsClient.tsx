@@ -117,7 +117,7 @@ export default function EmailSettingsClient() {
         } catch {}
       }
 
-      const svcTitle = (o.store_services as { title: string } | null)?.title || (o.store_products as { title: string } | null)?.title || "";
+      const svcTitle = ((o.store_services as any)?.title) || ((o.store_products as any)?.title) || "";
       if (!project) project = svcTitle;
 
       if (email && !seen.has(email)) {
