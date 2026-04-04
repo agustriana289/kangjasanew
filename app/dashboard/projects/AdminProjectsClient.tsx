@@ -219,6 +219,8 @@ export default function AdminProjectsClient() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ project_title: "", customer_name: "", whatsapp: "", customer_email: "", total_amount: "", status: "pending" as string });
   const [addSaving, setAddSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Cards state
   const [stats, setStats] = useState({
@@ -517,6 +519,7 @@ export default function AdminProjectsClient() {
       total_amount: addForm.total_amount ? Number(addForm.total_amount) : 0,
       form_data: fd,
       order_number: `CUSTOM-${Date.now()}`,
+      selected_package: {},
     });
     if (error) showToast("Gagal menambah proyek: " + error.message, "error");
     else {
@@ -542,14 +545,16 @@ export default function AdminProjectsClient() {
     const updatePayload: any = {
       status: editFormData.status,
       total_amount: Number(editFormData.total_amount) || 0,
-      discount_amount: Number(editFormData.discount_amount) || 0,
       payment_method: editFormData.payment_method,
-      progress: editFormData.progress,
-      form_data: updatedFd,
+      form_data: {
+        ...updatedFd,
+        discount_amount: Number(editFormData.discount_amount) || 0,
+        progress: Number(editFormData.progress) || 0,
+      },
     };
     if (editFormData.service_id) {
       updatePayload.service_id = editFormData.service_id;
-      updatePayload.selected_package = editFormData.package_name ? { name: editFormData.package_name } : null;
+      updatePayload.selected_package = editFormData.package_name ? { name: editFormData.package_name } : {};
     }
     if (selectedProject.guest_name !== undefined) updatePayload.guest_name = editFormData.customer_name;
     if (selectedProject.guest_phone !== undefined) updatePayload.guest_phone = editFormData.whatsapp;
@@ -752,7 +757,7 @@ export default function AdminProjectsClient() {
       )}
 
       {/* Detail Right Slide Modal */}
-      {isSlideOpen && selectedProject && createPortal((
+      {mounted && isSlideOpen && selectedProject && createPortal((
         <div className="fixed inset-0 z-[100] flex justify-end">
           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setIsSlideOpen(false)} />
           <div className="w-full max-w-md bg-white h-full shadow-2xl relative z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
@@ -1007,6 +1012,65 @@ export default function AdminProjectsClient() {
           </div>
         </div>
       ), document.body)}
+
+      {mounted && showAddModal && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-slate-900">Tambah Proyek Custom</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Judul Proyek *</label>
+                <input type="text" value={addForm.project_title} onChange={e => setAddForm({...addForm, project_title: e.target.value})} placeholder="Nama proyek..." className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Nama Klien</label>
+                  <input type="text" value={addForm.customer_name} onChange={e => setAddForm({...addForm, customer_name: e.target.value})} placeholder="Nama klien..." className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">WhatsApp</label>
+                  <input type="text" value={addForm.whatsapp} onChange={e => setAddForm({...addForm, whatsapp: e.target.value})} placeholder="+62..." className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Email Klien</label>
+                <input type="email" value={addForm.customer_email} onChange={e => setAddForm({...addForm, customer_email: e.target.value})} placeholder="email@klien.com" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Total Harga (Rp)</label>
+                  <input type="number" value={addForm.total_amount} onChange={e => setAddForm({...addForm, total_amount: e.target.value})} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Status</label>
+                  <div className="relative">
+                    <select value={addForm.status} onChange={e => setAddForm({...addForm, status: e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20 appearance-none">
+                      <option value="pending">No Status</option>
+                      <option value="waiting_payment">Belum Dibayar</option>
+                      <option value="paid">Dibayar</option>
+                      <option value="processing">Dikerjakan</option>
+                      <option value="completed">Selesai</option>
+                      <option value="cancelled">Dibatalkan</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors">Batal</button>
+              <button onClick={handleAddCustomProject} disabled={addSaving} className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                {addSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Simpan Proyek
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
