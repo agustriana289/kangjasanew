@@ -272,7 +272,6 @@ export default function AdminProjectsClient() {
   const getClientEmail = (o: Record<string, unknown>) => {
     const client = o.client as Record<string, unknown> | null;
     if (client?.email) return client.email as string;
-    if (o.guest_name) return "";
     const fd = getFormData(o);
     return (fd.email || fd.customer_email || "") as string;
   };
