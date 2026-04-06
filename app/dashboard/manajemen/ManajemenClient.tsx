@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
-import { sendProcessingWebhook } from "@/utils/makeWebhook";
+
 
 type ViewMode = "table" | "status" | "layanan" | "klien" | "grafik";
 
@@ -388,21 +388,7 @@ export default function ManajemenClient() {
     if (error) showToast("Gagal menyimpan", "error");
     else {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, [field]: value } : o));
-      if (field === "status" && value === "processing") {
-        const order = orders.find(o => o.id === id);
-        if (order) {
-          sendProcessingWebhook({
-            order_number: order.order_number as string,
-            status: "processing",
-            product_id: (order.product_id as string) ?? null,
-            service_id: (order.service_id as string) ?? null,
-            total_amount: Number(order.total_amount || 0),
-            guest_name: (order.guest_name as string) ?? null,
-            user_id: (order.user_id as string) ?? null,
-            created_at: (order.created_at as string) ?? null,
-          });
-        }
-      }
+
     }
     setSaving(s => ({ ...s, [id]: false }));
   };
