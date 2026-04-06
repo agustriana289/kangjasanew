@@ -886,10 +886,7 @@ export default function AdminProjectsClient() {
                            <span className="flex items-center gap-2 text-sm font-bold"><MessageSquare className="w-4 h-4 text-slate-400" /> Buka Ruang Kerja</span>
                            <ExternalLink className="w-3.5 h-3.5 opacity-50" />
                          </Link>
-                         <button onClick={() => {
-                            const url = `${window.location.origin}/testimonials/submit/${selectedProject.id}`;
-                            navigator.clipboard.writeText(url).then(() => showToast("Link testimoni berhasil disalin!", "success")).catch(() => showToast("Gagal menyalin link", "error"));
-                          }} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
+                         <button onClick={() => generateTestimonial(selectedProject.id)} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
                             <span className="flex items-center gap-2 text-sm font-bold"><Star className="w-4 h-4 text-amber-400" /> Salin Link Testimoni</span>
                             <Copy className="w-3.5 h-3.5 opacity-50" />
                           </button>
