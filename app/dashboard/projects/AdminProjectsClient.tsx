@@ -455,12 +455,20 @@ export default function AdminProjectsClient() {
 
   const generateTestimonial = async (id: string) => {
     try {
-      const now = new Date().toISOString();
-      const { error } = await supabase.from("store_orders").update({ testimonial_link_generated_at: now }).eq("id", id);
-      if (error) throw error;
+      const res = await fetch("/api/testimonial/generate-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Gagal generate link");
+      }
       navigator.clipboard.writeText(`${window.location.origin}/testimonials/submit/${id}`);
       showToast("Link testimoni disalin! Berlaku 7 hari.", "success");
-    } catch { showToast("Gagal generate link", "error"); }
+    } catch (err: any) {
+      showToast(err.message || "Gagal generate link", "error");
+    }
   };
 
   const handleSendEmail = async () => {
