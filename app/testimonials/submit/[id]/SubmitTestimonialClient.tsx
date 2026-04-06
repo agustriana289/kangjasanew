@@ -52,10 +52,10 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
       });
 
       if (error) throw error;
-      showToast("Thank you for your feedback!", "success");
+      showToast("Terima kasih atas ulasan Anda!", "success");
       setSuccess(true);
     } catch (err: any) {
-      showToast(err.message || "Failed to submit testimonial", "error");
+      showToast(err.message || "Gagal mengirim testimoni", "error");
     } finally {
       setSubmitting(false);
     }
@@ -67,10 +67,10 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
         <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 scale-110 shadow-sm shadow-emerald-200">
            <PartyPopper className="w-8 h-8 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Thank You!</h2>
-        <p className="text-slate-500 mb-6">Your testimonial means a lot to our growth.</p>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Terima Kasih!</h2>
+        <p className="text-slate-500 mb-6">Ulasan Anda sangat berarti bagi perkembangan kami.</p>
         <Link href="/" className="inline-block bg-primary text-white font-bold py-3 px-6 rounded-xl shadow-md hover:bg-secondary transition-colors">
-          Back to Home
+          Kembali ke Beranda
         </Link>
       </div>
     );
@@ -81,16 +81,16 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-purple-500 to-pink-500"></div>
       
       <div className="text-center mb-8 bg-slate-50 rounded-2xl p-4 border border-slate-100">
-         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Project Information</h4>
+         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Informasi Proyek</h4>
          <p className="text-lg font-bold text-slate-900">{getProjectName()}</p>
          <p className="text-xs text-slate-400 mt-1">Order #{order.order_number}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
          {[
-           { label: "Work Quality", state: ratingQuality, setter: setRatingQuality },
-           { label: "Communication Response", state: ratingCommunication, setter: setRatingCommunication },
-           { label: "Work Speed", state: ratingSpeed, setter: setRatingSpeed }
+           { label: "Kualitas Hasil", state: ratingQuality, setter: setRatingQuality },
+           { label: "Komunikasi & Respons", state: ratingCommunication, setter: setRatingCommunication },
+           { label: "Kecepatan Pengerjaan", state: ratingSpeed, setter: setRatingSpeed }
          ].map((item, i) => (
            <div key={i} className="flex flex-col items-center gap-3">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">{item.label}</span>
@@ -111,11 +111,11 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
       </div>
 
       <div className="relative mb-6">
-         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Leave a Message / Comment</label>
+         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Pesan / Komentar</label>
          <textarea 
             value={comment}
             onChange={e => setComment(e.target.value)}
-            placeholder="Write your experience or feedback here... (e.g., The design result is awesome!)"
+            placeholder="Ceritakan pengalaman Anda bekerja sama dengan kami... (mis. Hasilnya luar biasa!)"
             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-medium min-h-[140px] focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none outline-none leading-relaxed"
             required
          />
@@ -127,11 +127,11 @@ export default function SubmitTestimonialClient({ order, clientName }: { order: 
         className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-secondary transition-all shadow-md shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PartyPopper className="w-5 h-5" />}
-        Submit Testimonial & Complete
+        Kirim Testimoni
       </button>
       
       <p className="text-center text-[10px] font-medium text-slate-400 mt-5">
-        By clicking submit, you agree to provide an honest testimonial to be displayed on Kangjasa.
+        Dengan mengklik kirim, Anda setuju untuk memberikan testimoni yang jujur untuk ditampilkan di Kangjasa.
       </p>
     </form>
   );
