@@ -510,6 +510,17 @@ export default function AdminProjectsClient() {
     }
   };
 
+  const sendToTickTick = async (title: string, content: string) => {
+    try {
+      await fetch("/api/ticktick/create-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+    } catch {
+    }
+  };
+
   const handleAddCustomProject = async () => {
     if (!addForm.project_title) return showToast("Judul proyek wajib diisi", "error");
     setAddSaving(true);
@@ -534,6 +545,14 @@ export default function AdminProjectsClient() {
     else {
       showToast("Proyek berhasil ditambahkan", "success");
       setShowAddModal(false);
+      const svcTitle = servicesList.find(s => s.id === addForm.service_id)?.title || "";
+      const content = [
+        addForm.customer_name && `Klien: ${addForm.customer_name}`,
+        addForm.whatsapp && `WhatsApp: ${addForm.whatsapp}`,
+        svcTitle && `Layanan: ${svcTitle}${addForm.package_name ? ` - ${addForm.package_name}` : ""}`,
+        addForm.total_amount && `Total: Rp ${Number(addForm.total_amount).toLocaleString("id-ID")}`,
+      ].filter(Boolean).join("\n");
+      sendToTickTick(`📋 ${addForm.project_title}`, content);
       setAddForm({ project_title: "", customer_name: "", whatsapp: "", customer_email: "", total_amount: "", status: "pending", service_id: "", package_name: "" });
       fetchOrders();
     }
