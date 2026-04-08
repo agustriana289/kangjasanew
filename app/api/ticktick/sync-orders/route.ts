@@ -93,7 +93,8 @@ export async function POST() {
       })();
       const total = Number(order.total_amount || 0);
 
-      const title = `📋 ${projectTitle || clientName || order.id}`;
+      const name = projectTitle || clientName || order.id;
+      const title = total > 0 ? `${name} / Rp ${total.toLocaleString("id-ID")}` : name;
       const content = [
         clientName && `Klien: ${clientName}`,
         whatsapp && `WhatsApp: ${whatsapp}`,

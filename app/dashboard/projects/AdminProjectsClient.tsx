@@ -568,7 +568,10 @@ export default function AdminProjectsClient() {
         svcTitle && `Layanan: ${svcTitle}${addForm.package_name ? ` - ${addForm.package_name}` : ""}`,
         addForm.total_amount && `Total: Rp ${Number(addForm.total_amount).toLocaleString("id-ID")}`,
       ].filter(Boolean).join("\n");
-      sendToTickTick(`📋 ${addForm.project_title}`, content);
+      const tickTitle = addForm.total_amount
+        ? `${addForm.project_title} / Rp ${Number(addForm.total_amount).toLocaleString("id-ID")}`
+        : addForm.project_title;
+      sendToTickTick(tickTitle, content);
       setAddForm({ project_title: "", customer_name: "", whatsapp: "", customer_email: "", total_amount: "", status: "pending", service_id: "", package_name: "" });
       fetchOrders();
     }
