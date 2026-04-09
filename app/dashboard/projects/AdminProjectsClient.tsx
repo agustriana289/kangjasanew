@@ -250,6 +250,8 @@ export default function AdminProjectsClient() {
   const [sendTemplateId, setSendTemplateId] = useState("");
   const [sendAttachment, setSendAttachment] = useState<File | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [emailNotification, setEmailNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   
   // Edit Form State
   const [editFormData, setEditFormData] = useState<any>({});
@@ -486,11 +488,12 @@ export default function AdminProjectsClient() {
   };
 
   const handleSendEmail = async () => {
-    if (!sendTemplateId) return showToast("Pilih template email", "error");
+    if (!sendTemplateId) return setEmailNotification({ type: "error", message: "Pilih template email terlebih dahulu" });
     const toEmail = getClientEmail(selectedProject);
-    if (!toEmail) return showToast("Klien tidak memiliki email", "error");
+    if (!toEmail) return setEmailNotification({ type: "error", message: "Klien tidak memiliki email" });
     
     setSendingEmail(true);
+    setEmailNotification(null);
     try {
       const placeholders: Record<string, string> = {
         nama_klien: getClientName(selectedProject),
@@ -514,11 +517,15 @@ export default function AdminProjectsClient() {
 
       const res = await fetch("/api/email/send", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Gagal mengirim email");
-      showToast("Email terkirim!", "success");
-      setSendAttachment(null); setSendTemplateId(""); setSendFromId("");
-      setModalView("detail");
+      setEmailNotification({ type: "success", message: "File akhir berhasil dikirim ke klien!" });
+      setTimeout(() => {
+        setSendAttachment(null); setSendTemplateId(""); setSendFromId("");
+        setUploadProgress(0);
+        setModalView("detail");
+        setEmailNotification(null);
+      }, 2000);
     } catch (err: any) {
-      showToast(err.message, "error");
+      setEmailNotification({ type: "error", message: err.message || "Gagal mengirim file" });
     } finally {
       setSendingEmail(false);
     }
@@ -840,7 +847,7 @@ export default function AdminProjectsClient() {
                 <div>
                    <h2 className="text-base font-bold text-slate-900">
                      {modalView === 'detail' && "Detail Proyek"}
-                     {modalView === 'email' && "Kirim Email"}
+                     {modalView === 'email' && "Kirim File Akhir"}
                      {modalView === 'edit' && "Edit Proyek"}
                    </h2>
                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">#{selectedProject.order_number}</p>
@@ -946,10 +953,12 @@ export default function AdminProjectsClient() {
                       </div>
 
                       <div className="space-y-2 pt-2 border-t border-slate-100">
-                         <button onClick={() => setModalView("email")} className="w-full flex items-center justify-between p-3 rounded-xl bg-[#a698ff]/10 text-[#715cff] hover:bg-[#a698ff]/20 transition-colors border border-[#a698ff]/20">
-                           <span className="flex items-center gap-2 text-sm font-bold"><Mail className="w-4 h-4" /> Kirim Email</span>
+                         {selectedProject.status === "completed" && (
+                         <button onClick={() => { setEmailNotification(null); setModalView("email"); }} className="w-full flex items-center justify-between p-3 rounded-xl bg-[#a698ff]/10 text-[#715cff] hover:bg-[#a698ff]/20 transition-colors border border-[#a698ff]/20">
+                           <span className="flex items-center gap-2 text-sm font-bold"><Mail className="w-4 h-4" /> Kirim File Akhir</span>
                            <ChevronRight className="w-4 h-4 opacity-50" />
                          </button>
+                         )}
                          <Link href={`/workspace/${selectedProject.id}`} className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
                            <span className="flex items-center gap-2 text-sm font-bold"><MessageSquare className="w-4 h-4 text-slate-400" /> Buka Ruang Kerja</span>
                            <ExternalLink className="w-3.5 h-3.5 opacity-50" />
@@ -1007,16 +1016,43 @@ export default function AdminProjectsClient() {
                          <div className="flex items-center gap-3">
                             <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-bold transition-all">
                                <Paperclip className="w-4 h-4" /> Pilih File
-                               <input type="file" className="hidden" accept=".zip,.rar" onChange={e => setSendAttachment(e.target.files?.[0] || null)} />
+                               <input type="file" className="hidden" accept=".zip,.rar" onChange={e => { setSendAttachment(e.target.files?.[0] || null); setUploadProgress(100); }} />
                             </label>
-                            {sendAttachment && <span className="text-xs font-medium text-slate-500 truncate">{sendAttachment.name}</span>}
+                            {sendAttachment && (
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium text-slate-600 truncate">{sendAttachment.name}</span>
+                                  <span className="text-[9px] font-bold text-slate-400">{uploadProgress}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                                </div>
+                              </div>
+                            )}
                          </div>
                       </div>
+
+                      {emailNotification && (
+                        <div className={`p-3 rounded-xl border flex items-start gap-2 ${
+                          emailNotification.type === "success" 
+                            ? "bg-green-50 border-green-200" 
+                            : "bg-red-50 border-red-200"
+                        }`}>
+                          {emailNotification.type === "success" ? (
+                            <Check className={`w-4 h-4 shrink-0 mt-0.5 ${emailNotification.type === "success" ? "text-green-600" : "text-red-600"}`} />
+                          ) : (
+                            <X className={`w-4 h-4 shrink-0 mt-0.5 ${emailNotification.type === "success" ? "text-green-600" : "text-red-600"}`} />
+                          )}
+                          <p className={`text-xs font-medium ${emailNotification.type === "success" ? "text-green-700" : "text-red-700"}`}>
+                            {emailNotification.message}
+                          </p>
+                        </div>
+                      )}
 
                       <div className="pt-6 flex items-center gap-3 border-t border-slate-100 mt-6">
                          <button onClick={() => setModalView("detail")} className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors">Batal</button>
                          <button onClick={handleSendEmail} disabled={sendingEmail || !getClientEmail(selectedProject)} className="flex-1 py-3 bg-[#a698ff] hover:bg-[#8f7fff] disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-sm">
-                           {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Kirim Email
+                           {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Kirim File Akhir
                          </button>
                       </div>
                    </div>
