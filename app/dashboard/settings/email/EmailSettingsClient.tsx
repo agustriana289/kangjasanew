@@ -503,14 +503,6 @@ export default function EmailSettingsClient() {
 
       <div className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-auto">
 
-        {activeSection === "credentials" && (
-          <div>Migrate to settings</div>
-        )}
-
-        {activeSection === "domains" && (
-          <div>Migrate to settings</div>
-        )}
-
         {activeSection === "settings" && (
           <div className="max-w-4xl space-y-8">
             {/* Kredensial Gmail Section */}
@@ -1070,7 +1062,7 @@ export default function EmailSettingsClient() {
                         <span className="text-[9px] font-bold text-slate-400">{uploadProgress}%</span>
                       </div>
                       <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                        <div className="h-full bg-linear-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                       </div>
                     </div>
                   )}
@@ -1214,7 +1206,7 @@ export default function EmailSettingsClient() {
                         <span className="text-[9px] font-bold text-slate-400">{uploadProgress}%</span>
                       </div>
                       <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                        <div className="h-full bg-linear-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                       </div>
                     </div>
                   )}
