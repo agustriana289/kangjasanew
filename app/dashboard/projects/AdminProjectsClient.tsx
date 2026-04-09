@@ -522,16 +522,21 @@ export default function AdminProjectsClient() {
         const xhr = new XMLHttpRequest();
 
         // Track upload progress
-        if (sendAttachment) {
-          xhr.upload.addEventListener("progress", (e) => {
-            if (e.lengthComputable) {
-              const percentComplete = (e.loaded / e.total) * 100;
-              setUploadProgress(Math.round(percentComplete));
-            }
-          });
-        }
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            console.log(`Upload progress: ${percentComplete}% (${e.loaded}/${e.total})`);
+            setUploadProgress(percentComplete);
+          }
+        });
+
+        xhr.addEventListener("loadstart", () => {
+          console.log("Upload started");
+          setUploadProgress(1);
+        });
 
         xhr.addEventListener("load", () => {
+          console.log(`Request completed with status: ${xhr.status}`);
           if (xhr.status === 200) {
             setUploadProgress(100);
             setEmailNotification({ type: "success", message: "File akhir berhasil dikirim ke klien!" });
@@ -548,25 +553,31 @@ export default function AdminProjectsClient() {
           } else {
             try {
               const response = JSON.parse(xhr.responseText);
+              console.error("Server error:", response.error);
               reject(new Error(response.error || `Error ${xhr.status}`));
-            } catch {
+            } catch (e) {
+              console.error("Parse error:", xhr.responseText);
               reject(new Error(`Gagal mengirim email (${xhr.status})`));
             }
           }
         });
 
         xhr.addEventListener("error", () => {
+          console.error("XHR error event");
           reject(new Error("Koneksi gagal. Periksa ukuran file (max 10MB)"));
         });
 
         xhr.addEventListener("abort", () => {
+          console.error("XHR abort event");
           reject(new Error("Upload dibatalkan"));
         });
 
+        console.log("Sending request to /api/email/send");
         xhr.open("POST", "/api/email/send", true);
         xhr.send(formData);
       });
     } catch (err: any) {
+      console.error("Upload error:", err);
       setEmailNotification({ type: "error", message: err.message || "Gagal mengirim file" });
       setSendingEmail(false);
       setUploadProgress(0);
