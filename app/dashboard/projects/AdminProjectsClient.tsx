@@ -494,40 +494,82 @@ export default function AdminProjectsClient() {
     
     setSendingEmail(true);
     setEmailNotification(null);
+    setUploadProgress(0);
+    
+    const placeholders: Record<string, string> = {
+      nama_klien: getClientName(selectedProject),
+      nama: getClientName(selectedProject),
+      nama_proyek: getProjectTitle(selectedProject),
+      email: toEmail,
+      no_hp: getClientWhatsApp(selectedProject),
+      invoice: selectedProject.order_number,
+      nama_layanan: getServiceTitle(selectedProject),
+      paket: getPackageName(selectedProject),
+      total_harga: String(Number(selectedProject.total_amount || 0) + (allCharges[selectedProject.id] || 0)),
+    };
+
+    const formData = new FormData();
+    formData.append("to", toEmail);
+    formData.append("isBroadcast", "false");
+    if (sendFromId) formData.append("fromDomainId", sendFromId);
+    formData.append("templateId", sendTemplateId);
+    formData.append("placeholders", JSON.stringify(placeholders));
+    if (sendAttachment) formData.append("attachment", sendAttachment);
+
     try {
-      const placeholders: Record<string, string> = {
-        nama_klien: getClientName(selectedProject),
-        nama: getClientName(selectedProject),
-        nama_proyek: getProjectTitle(selectedProject),
-        email: toEmail,
-        no_hp: getClientWhatsApp(selectedProject),
-        invoice: selectedProject.order_number,
-        nama_layanan: getServiceTitle(selectedProject),
-        paket: getPackageName(selectedProject),
-        total_harga: String(Number(selectedProject.total_amount || 0) + (allCharges[selectedProject.id] || 0)),
-      };
+      // Use XMLHttpRequest untuk track upload progress
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
 
-      const formData = new FormData();
-      formData.append("to", toEmail);
-      formData.append("isBroadcast", "false");
-      if (sendFromId) formData.append("fromDomainId", sendFromId);
-      formData.append("templateId", sendTemplateId);
-      formData.append("placeholders", JSON.stringify(placeholders));
-      if (sendAttachment) formData.append("attachment", sendAttachment);
+        // Track upload progress
+        if (sendAttachment) {
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              const percentComplete = (e.loaded / e.total) * 100;
+              setUploadProgress(Math.round(percentComplete));
+            }
+          });
+        }
 
-      const res = await fetch("/api/email/send", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Gagal mengirim email");
-      setEmailNotification({ type: "success", message: "File akhir berhasil dikirim ke klien!" });
-      setTimeout(() => {
-        setSendAttachment(null); setSendTemplateId(""); setSendFromId("");
-        setUploadProgress(0);
-        setModalView("detail");
-        setEmailNotification(null);
-      }, 2000);
+        xhr.addEventListener("load", () => {
+          if (xhr.status === 200) {
+            setUploadProgress(100);
+            setEmailNotification({ type: "success", message: "File akhir berhasil dikirim ke klien!" });
+            setTimeout(() => {
+              setSendAttachment(null); 
+              setSendTemplateId(""); 
+              setSendFromId("");
+              setUploadProgress(0);
+              setModalView("detail");
+              setEmailNotification(null);
+              setSendingEmail(false);
+            }, 2000);
+            resolve();
+          } else {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              reject(new Error(response.error || `Error ${xhr.status}`));
+            } catch {
+              reject(new Error(`Gagal mengirim email (${xhr.status})`));
+            }
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Koneksi gagal. Periksa ukuran file (max 10MB)"));
+        });
+
+        xhr.addEventListener("abort", () => {
+          reject(new Error("Upload dibatalkan"));
+        });
+
+        xhr.open("POST", "/api/email/send", true);
+        xhr.send(formData);
+      });
     } catch (err: any) {
       setEmailNotification({ type: "error", message: err.message || "Gagal mengirim file" });
-    } finally {
       setSendingEmail(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1020,11 +1062,16 @@ export default function AdminProjectsClient() {
                                  const file = e.target.files?.[0] || null;
                                  const maxSize = 10 * 1024 * 1024; // 10MB
                                  if (file && file.size > maxSize) {
-                                   setEmailNotification({ type: "error", message: `File terlalu besar (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maksimal 10MB.` });
+                                   const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                                   setEmailNotification({ 
+                                     type: "error", 
+                                     message: `File terlalu besar (${sizeMB}MB). Maksimal 10MB. Silakan kompres atau split file.` 
+                                   });
                                    e.target.value = "";
-                                 } else {
+                                   setSendAttachment(null);
+                                 } else if (file) {
                                    setSendAttachment(file);
-                                   setUploadProgress(100);
+                                   setUploadProgress(0);
                                    setEmailNotification(null);
                                  }
                                }} />

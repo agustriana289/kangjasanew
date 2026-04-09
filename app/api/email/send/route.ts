@@ -3,13 +3,7 @@ import nodemailer from "nodemailer";
 import { createClient } from "@/utils/supabase/server";
 import { createDecipheriv } from "crypto";
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+export const maxDuration = 60;
 
 const CIPHER_KEY = (process.env.EMAIL_CIPHER_KEY || "").padEnd(32, "0").slice(0, 32);
 const CIPHER_IV = (process.env.EMAIL_CIPHER_IV || "").padEnd(16, "0").slice(0, 16);
