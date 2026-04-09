@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, Type, Globe, CheckCircle, Clock, Tag, Link as LinkIcon, CalendarClock } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, Type, Globe, CheckCircle, Clock, Tag, Link as LinkIcon, CalendarClock, Mail } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
@@ -14,6 +14,7 @@ export default function NewPromoPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [showEmailField, setShowEmailField] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
@@ -24,6 +25,7 @@ export default function NewPromoPage() {
     order_link: "",
     expired_at: "",
     is_published: true,
+    subscriber_email: "",
   });
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +33,24 @@ export default function NewPromoPage() {
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     setFormData(prev => ({ ...prev, title, slug }));
   };
+
+  useEffect(() => {
+    const fetchEmailSettings = async () => {
+      try {
+        const { data } = await supabase
+          .from("email_settings")
+          .select("show_email_in_promo")
+          .eq("id", 1)
+          .single();
+        if (data?.show_email_in_promo) {
+          setShowEmailField(true);
+        }
+      } catch (error) {
+        console.log("Error fetching email settings:", error);
+      }
+    };
+    fetchEmailSettings();
+  }, [supabase]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +68,29 @@ export default function NewPromoPage() {
         is_published: formData.is_published,
         published_at: formData.is_published ? new Date().toISOString() : null,
       };
+      
+      // Insert promo first
       const { error } = await supabase.from("promos").insert([payload]);
       if (error) throw error;
+
+      // If email is provided and setting is enabled, add to subscribers
+      if (formData.subscriber_email && showEmailField) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailRegex.test(formData.subscriber_email)) {
+          try {
+            await supabase.from("email_subscribers").insert({
+              email: formData.subscriber_email,
+              name: null,
+            });
+          } catch (emailError: any) {
+            // If email already exists, that's ok - just continue
+            if (!emailError.message.includes("duplicate")) {
+              console.log("Warning: Could not add email to subscribers:", emailError);
+            }
+          }
+        }
+      }
+
       showToast("Promo berhasil dibuat!", "success");
       router.push("/dashboard/promos");
     } catch (error: any) {
@@ -173,6 +214,29 @@ export default function NewPromoPage() {
               </div>
             </div>
           </div>
+
+          {showEmailField && (
+            <div className="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <Mail className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Koleksi Email Subscriber</h3>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Email Subscriber (Opsional)</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={formData.subscriber_email}
+                    onChange={e => setFormData(prev => ({ ...prev, subscriber_email: e.target.value }))}
+                    className={`${inputClass} pl-10`}
+                    placeholder="email@contoh.com"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">Email akan ditambahkan ke daftar subscriber otomatis</p>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">

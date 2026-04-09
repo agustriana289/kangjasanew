@@ -33,19 +33,27 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { gmail_address, gmail_app_password } = body;
+    const { gmail_address, gmail_app_password, show_email_in_promo } = body;
 
-    if (!gmail_address) {
-      return NextResponse.json({ error: "Alamat Gmail wajib diisi" }, { status: 400 });
+    // Jika tidak ada field yang dikirim, return error
+    if (!gmail_address && show_email_in_promo === undefined) {
+      return NextResponse.json({ error: "Tidak ada data yang diubah" }, { status: 400 });
     }
 
-    const updateData: Record<string, string> = {
-      gmail_address,
+    const updateData: Record<string, any> = {
       updated_at: new Date().toISOString()
     };
 
+    if (gmail_address) {
+      updateData.gmail_address = gmail_address;
+    }
+
     if (gmail_app_password) {
       updateData.gmail_app_password_encrypted = encryptPassword(gmail_app_password);
+    }
+
+    if (show_email_in_promo !== undefined) {
+      updateData.show_email_in_promo = show_email_in_promo;
     }
 
     const { error } = await supabase
@@ -57,7 +65,7 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ success: true, message: "Kredensial berhasil disimpan" });
+    return NextResponse.json({ success: true, message: "Pengaturan berhasil disimpan" });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Terjadi kesalahan sistem" }, { status: 500 });
   }

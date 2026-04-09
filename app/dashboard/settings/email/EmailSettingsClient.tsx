@@ -62,6 +62,8 @@ export default function EmailSettingsClient() {
   const [gmailPassword, setGmailPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [credentialSaving, setCredentialSaving] = useState(false);
+  const [showEmailInPromo, setShowEmailInPromo] = useState(false);
+  const [promoSettingsSaving, setPromoSettingsSaving] = useState(false);
 
   const [domains, setDomains] = useState<EmailDomain[]>([]);
   const [domainSaving, setDomainSaving] = useState(false);
@@ -98,12 +100,13 @@ export default function EmailSettingsClient() {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: settings }, { data: doms }, { data: tmpls }, { data: subs }] = await Promise.all([
-      supabase.from("email_settings").select("gmail_address").eq("id", 1).single(),
+      supabase.from("email_settings").select("gmail_address, show_email_in_promo").eq("id", 1).single(),
       supabase.from("email_domains").select("*").order("created_at"),
       supabase.from("email_templates").select("*").order("created_at"),
       (async () => { try { const { data } = await supabase.from("email_subscribers").select("*").order("created_at", { ascending: false }); return { data: data || [] }; } catch { return { data: [] }; } })()
     ]);
     if (settings?.gmail_address) setGmailAddress(settings.gmail_address);
+    if (settings?.show_email_in_promo) setShowEmailInPromo(settings.show_email_in_promo);
     setDomains(doms || []);
     setTemplates(tmpls || []);
     setSubscribers(subs || []);
@@ -215,6 +218,28 @@ export default function EmailSettingsClient() {
       showToast(err instanceof Error ? err.message : "Terjadi kesalahan", "error");
     } finally {
       setCredentialSaving(false);
+    }
+  };
+
+  const handleSavePromoSettings = async () => {
+    setPromoSettingsSaving(true);
+    try {
+      const res = await fetch("/api/email/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          show_email_in_promo: showEmailInPromo
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan pengaturan");
+      
+      showToast("Pengaturan promo disimpan.", "success");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Terjadi kesalahan", "error");
+    } finally {
+      setPromoSettingsSaving(false);
     }
   };
 
@@ -498,6 +523,32 @@ export default function EmailSettingsClient() {
                 {credentialSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan Kredensial
               </button>
+
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">Pengaturan Koleksi Email di Promo</h3>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Tampilkan Kolom Email di Form Promo</p>
+                    <p className="text-xs text-slate-500 mt-1">Aktifkan untuk mengumpulkan email subscriber saat publikasi promo</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailInPromo(!showEmailInPromo)}
+                    className={`w-11 h-6 rounded-full relative transition-all ${showEmailInPromo ? "bg-green-500" : "bg-slate-300"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${showEmailInPromo ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+                <button
+                  id="save_promo_settings_btn"
+                  onClick={handleSavePromoSettings}
+                  disabled={promoSettingsSaving}
+                  className="inline-flex items-center gap-2 bg-primary text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 mt-4"
+                >
+                  {promoSettingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Simpan Pengaturan Promo
+                </button>
+              </div>
             </div>
           </div>
         )}
