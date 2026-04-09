@@ -894,7 +894,7 @@ export default function AdminProjectsClient() {
 
       {/* Detail Right Slide Modal */}
       {mounted && isSlideOpen && selectedProject && createPortal((
-        <div className="fixed inset-0 z-[100] flex justify-end">
+        <div className="fixed inset-0 z-100 flex justify-end">
           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setIsSlideOpen(false)} />
           <div className="w-full max-w-md bg-white h-full shadow-2xl relative z-10 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1095,7 +1095,7 @@ export default function AdminProjectsClient() {
                                   <span className="text-[9px] font-bold text-slate-400">{uploadProgress}%</span>
                                 </div>
                                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                                  <div className="h-full bg-linear-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                                 </div>
                               </div>
                             )}
@@ -1192,7 +1192,7 @@ export default function AdminProjectsClient() {
       ), document.body)}
 
       {mounted && showAddModal && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+        <div className="fixed inset-0 z-200 flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-5">
