@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tag, Copy, MessageCircle, ExternalLink, Clock } from "lucide-react";
+import { Tag, Copy, MessageCircle, ExternalLink, Clock, Mail, Loader2, CheckCircle } from "lucide-react";
 
 interface PromoInteractiveProps {
   promo_code: string | null;
@@ -9,6 +9,7 @@ interface PromoInteractiveProps {
   expired_at: string | null;
   title: string;
   waNumber: string;
+  show_subscriber_email: boolean;
 }
 
 function useCountdown(expired_at: string | null) {
@@ -43,9 +44,48 @@ function useCountdown(expired_at: string | null) {
   return { timeLeft, expired };
 }
 
-export default function PromoInteractive({ promo_code, order_link, expired_at, title, waNumber }: PromoInteractiveProps) {
+export default function PromoInteractive({ promo_code, order_link, expired_at, title, waNumber, show_subscriber_email }: PromoInteractiveProps) {
   const { timeLeft, expired } = useCountdown(expired_at);
   const [copied, setCopied] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [subscriberEmail, setSubscriberEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const handleSubscribeEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError("");
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(subscriberEmail)) {
+      setEmailError("Email tidak valid");
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const response = await fetch("/api/email/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subscriberEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setEmailError(data.error || "Gagal menambahkan email");
+        return;
+      }
+
+      setEmailSubmitted(true);
+      setSubscriberEmail("");
+      setTimeout(() => setEmailSubmitted(false), 3000);
+    } catch (error) {
+      setEmailError("Terjadi kesalahan. Silakan coba lagi.");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   const waText = promo_code
     ? `Halo, saya ingin memesan menggunakan kode promo *${promo_code}* — ${title}`
@@ -137,6 +177,59 @@ export default function PromoInteractive({ promo_code, order_link, expired_at, t
           <p className="text-xs text-slate-400 mt-3">Kode voucher dan tombol order telah dinonaktifkan karena promo sudah berakhir.</p>
         )}
       </div>
+
+      {show_subscriber_email && (
+        <div className="mt-8 p-6 rounded-3xl border border-slate-200 bg-white">
+          <div className="flex items-center gap-2 mb-4">
+            <Mail className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-slate-900">Dapatkan Update Promo Terbaru</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">Masukkan email Anda untuk mendapatkan notifikasi tentang promo dan penawaran spesial lainnya.</p>
+
+          {emailSubmitted ? (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+              <p className="text-sm font-semibold text-emerald-700">Email berhasil ditambahkan! Terima kasih.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubscribeEmail} className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1">
+                <input
+                  type="email"
+                  value={subscriberEmail}
+                  onChange={(e) => {
+                    setSubscriberEmail(e.target.value);
+                    setEmailError("");
+                  }}
+                  placeholder="nama@email.com"
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  disabled={emailLoading}
+                />
+                {emailError && (
+                  <p className="text-xs text-rose-500 font-medium mt-2">{emailError}</p>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={emailLoading || !subscriberEmail}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary hover:bg-secondary text-white text-sm font-bold transition-all disabled:opacity-60 whitespace-nowrap"
+              >
+                {emailLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Mengirim...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Berlangganan
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </>
   );
 }

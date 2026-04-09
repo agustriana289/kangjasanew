@@ -15,6 +15,7 @@ interface PromoContentProps {
     promo_code: string | null;
     order_link: string | null;
     expired_at: string | null;
+    show_subscriber_email: boolean;
   };
   waNumber: string;
 }
@@ -110,6 +111,7 @@ export default function PromoContent({ promo, waNumber }: PromoContentProps) {
           expired_at={promo.expired_at}
           title={promo.title}
           waNumber={waNumber}
+          show_subscriber_email={promo.show_subscriber_email}
         />
 
         <div className="mt-10 pt-6 border-t border-slate-100">
