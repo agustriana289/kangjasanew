@@ -501,6 +501,7 @@ export default function AdminProjectsClient() {
       nama: getClientName(selectedProject),
       nama_proyek: getProjectTitle(selectedProject),
       email: toEmail,
+      email_klien: toEmail,
       no_hp: getClientWhatsApp(selectedProject),
       invoice: selectedProject.order_number,
       nama_layanan: getServiceTitle(selectedProject),
