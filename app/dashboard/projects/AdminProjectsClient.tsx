@@ -396,6 +396,19 @@ export default function AdminProjectsClient() {
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => { setPage(1); }, [view, search, selectedYear]);
 
+  // Auto-populate total_amount based on selected service and package
+  useEffect(() => {
+    if (addForm.service_id && addForm.package_name) {
+      const selectedService = servicesList.find(s => s.id === addForm.service_id);
+      if (selectedService) {
+        const selectedPackage = (selectedService.packages as any[]).find((p: any) => p.name === addForm.package_name);
+        if (selectedPackage && selectedPackage.price) {
+          setAddForm(prev => ({ ...prev, total_amount: String(selectedPackage.price) }));
+        }
+      }
+    }
+  }, [addForm.service_id, addForm.package_name, servicesList]);
+
   const updateField = async (id: string, field: string, value: string | number) => {
     setSaving(s => ({ ...s, [id]: true }));
     const { error } = await supabase.from("store_orders").update({ [field]: value }).eq("id", id);
@@ -1123,8 +1136,12 @@ export default function AdminProjectsClient() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Total Harga (Rp)</label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Harga (Rp)</label>
+                    {addForm.service_id && addForm.package_name && <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded font-bold">Auto</span>}
+                  </div>
                   <input type="number" value={addForm.total_amount} onChange={e => setAddForm({...addForm, total_amount: e.target.value})} placeholder="0" className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20" />
+                  {addForm.service_id && addForm.package_name && <p className="text-[10px] text-slate-400 mt-1">Auto diisi dari harga paket</p>}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 block">Status</label>
