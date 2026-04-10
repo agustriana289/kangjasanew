@@ -123,6 +123,21 @@ export async function POST(req: NextRequest) {
 
     await transporter.sendMail(mailOptions);
 
+    const recipientCount = isBroadcast ? to.split(",").filter(Boolean).length : 1;
+
+    await supabase.from("email_logs").insert({
+      type: isBroadcast ? "broadcast" : "individual",
+      recipient_to: isBroadcast ? `${recipientCount} subscriber` : to,
+      recipient_count: recipientCount,
+      subject,
+      template_id: templateId || null,
+      template_name: template.subject,
+      from_domain: domainRow?.domain || settings.gmail_address,
+      has_attachment: !!(attachmentBuffer && attachmentName),
+      attachment_name: attachmentName || null,
+      status: "success",
+    });
+
     return NextResponse.json({ success: true, message: "Email berhasil dikirim." });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Gagal mengirim email." }, { status: 500 });
