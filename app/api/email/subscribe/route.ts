@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const body = await req.json();
-    const { email, name } = body;
+    const { email, name, whatsapp } = body;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.from("email_subscribers").insert({
       email: email.toLowerCase(),
       name: name?.trim() || null,
+      whatsapp: whatsapp?.trim() || null,
     });
 
     if (error) {

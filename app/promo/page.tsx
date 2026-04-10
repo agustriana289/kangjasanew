@@ -5,6 +5,7 @@ import FadeIn from "@/components/landing/FadeIn";
 import Link from "next/link";
 import { Calendar, ArrowRight, Tag, Clock, CheckCircle2 } from "lucide-react";
 import Pagination from "@/components/landing/Pagination";
+import PromoCountdown from "@/components/landing/PromoCountdown";
 
 export const revalidate = 60;
 
@@ -101,9 +102,7 @@ export default async function PromoPage(props: { searchParams?: Promise<{ [key: 
                           {promo.expired_at && (
                             <>
                               <span>·</span>
-                              <span className={expired ? "text-rose-400 font-medium" : "text-amber-500 font-medium"}>
-                                {expired ? "Berakhir" : "Hingga"} {new Date(promo.expired_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                              </span>
+                              <PromoCountdown expired_at={promo.expired_at} />
                             </>
                           )}
                         </div>
@@ -115,13 +114,7 @@ export default async function PromoPage(props: { searchParams?: Promise<{ [key: 
                             {promo.excerpt}
                           </p>
                         )}
-                        {promo.promo_code && (
-                          <div className="mb-4">
-                            <span className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-primary tracking-widest">
-                              <Tag size={11} /> {promo.promo_code}
-                            </span>
-                          </div>
-                        )}
+
                         <div className="mt-auto">
                           <Link
                             href={`/promo/${promo.slug}`}

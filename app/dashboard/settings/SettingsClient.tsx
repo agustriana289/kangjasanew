@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
-import { Save, Loader2, Globe, FileText, MonitorSmartphone, LayoutTemplate, PanelTop, PanelBottom, Settings, Search, Banknote, Upload, Image as ImageIcon, Plus, Trash2, ArrowUp, ArrowDown, Rocket, Sparkles, CheckCircle2, Zap, Shield, RefreshCcw, Lightbulb, Edit3, DownloadCloud, Star, TrendingUp, Users, Briefcase, Award } from "lucide-react";
+import { Save, Loader2, Globe, FileText, MonitorSmartphone, LayoutTemplate, PanelTop, PanelBottom, Settings, Search, Banknote, Upload, Image as ImageIcon, Plus, Trash2, ArrowUp, ArrowDown, Rocket, Sparkles, CheckCircle2, Zap, Shield, RefreshCcw, Lightbulb, Edit3, DownloadCloud, Star, TrendingUp, Users, Briefcase, Award, ListTodo } from "lucide-react";
 
 const AVAILABLE_ICONS = ["Rocket", "Sparkles", "CheckCircle2", "Zap", "Shield", "RefreshCcw", "Search", "Lightbulb", "Edit3", "DownloadCloud", "Star", "Globe", "TrendingUp", "Monitor", "Users", "Briefcase", "Award", "Image", "Smartphone", "Heart", "ThumbsUp", "Target", "Coffee", "Check", "Play", "Menu"];
 const AVAILABLE_SOCIALS = ["Facebook", "Twitter", "Instagram", "Linkedin", "Youtube", "Github", "Dribbble", "Tiktok"];
@@ -108,6 +108,7 @@ const TAB_MENUS = [
   { id: "header", label: "Header", icon: PanelTop },
   { id: "footer", label: "Footer", icon: PanelBottom },
   { id: "seo", label: "Mesin SEO", icon: Search },
+  { id: "ticktick", label: "TickTick", icon: ListTodo, href: "/dashboard/settings/ticktick" },
   { id: "payment", label: "Metode Pembayaran", icon: Banknote },
 ];
 
@@ -684,6 +685,18 @@ export default function SettingsClient() {
         <nav className="flex xl:flex-col gap-2 min-w-max xl:min-w-0 pb-2">
           {TAB_MENUS.map((tab) => {
             const isActive = activeTab === tab.id;
+            if ((tab as any).href) {
+              return (
+                <a
+                  key={tab.id}
+                  href={(tab as any).href}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
+                >
+                  <tab.icon className="w-5 h-5 text-slate-400" />
+                  {tab.label}
+                </a>
+              );
+            }
             return (
               <button
                 key={tab.id}
