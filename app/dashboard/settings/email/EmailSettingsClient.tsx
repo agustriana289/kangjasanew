@@ -689,7 +689,7 @@ export default function EmailSettingsClient() {
         )}
 
         {activeSection === "templates" && (
-          <div className="max-w-3xl space-y-6">
+          <div className="space-y-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 tracking-tight mb-1">Template Email</h2>
               <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">
@@ -855,7 +855,7 @@ export default function EmailSettingsClient() {
         )}
 
         {activeSection === "subscribers" && (
-          <div className="max-w-3xl space-y-6">
+          <div className="space-y-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 tracking-tight mb-1">Daftar Subscriber Email</h2>
               <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">
@@ -1263,7 +1263,7 @@ export default function EmailSettingsClient() {
         )}
 
         {activeSection === "history" && (
-          <div className="max-w-4xl space-y-6">
+          <div className="space-y-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 tracking-tight mb-1">Histori Pengiriman Email</h2>
               <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">
