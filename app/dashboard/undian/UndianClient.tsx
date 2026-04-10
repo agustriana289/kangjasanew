@@ -223,7 +223,7 @@ export default function UndianClient() {
   const labelClass = "block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2";
 
   return (
-    <div className="pt-6 px-4 pb-16 max-w-6xl mx-auto">
+    <div className="pt-6 px-4 pb-16">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Modul Undian</h1>
