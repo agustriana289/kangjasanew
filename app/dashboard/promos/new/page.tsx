@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, Type, Globe, CheckCircle, Clock, Tag, Link as LinkIcon, CalendarClock, Mail } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, Type, Globe, CheckCircle, Clock, Tag, Link as LinkIcon, CalendarClock, Mail, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ToastProvider";
@@ -25,6 +25,9 @@ export default function NewPromoPage() {
     expired_at: "",
     is_published: true,
     show_subscriber_email: false,
+    email_section_title: "Dapatkan Update Promo Terbaru",
+    email_section_description: "Masukkan email Anda untuk mendapatkan notifikasi tentang promo dan penawaran spesial lainnya.",
+    email_button_text: "Berlangganan",
   });
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +52,9 @@ export default function NewPromoPage() {
         is_published: formData.is_published,
         published_at: formData.is_published ? new Date().toISOString() : null,
         show_subscriber_email: formData.show_subscriber_email,
+        email_section_title: formData.email_section_title || "Dapatkan Update Promo Terbaru",
+        email_section_description: formData.email_section_description || "Masukkan email Anda untuk mendapatkan notifikasi tentang promo dan penawaran spesial lainnya.",
+        email_button_text: formData.email_button_text || "Berlangganan",
       };
       
       const { error } = await supabase.from("promos").insert([payload]);
@@ -219,7 +225,7 @@ export default function NewPromoPage() {
               </button>
             </div>
 
-            <div className="pt-4 border-t border-slate-100">
+            <div className="pt-4 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-200">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-amber-100 text-amber-600">
@@ -238,6 +244,45 @@ export default function NewPromoPage() {
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${formData.show_subscriber_email ? "right-1" : "left-1"}`} />
                 </button>
               </div>
+
+              {formData.show_subscriber_email && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <ChevronDown className="w-3 h-3" />
+                    Kustomisasi Tampilan Email
+                  </p>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Judul</label>
+                    <input
+                      type="text"
+                      value={formData.email_section_title}
+                      onChange={e => setFormData(prev => ({ ...prev, email_section_title: e.target.value }))}
+                      placeholder="Dapatkan Update Promo Terbaru"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Deskripsi</label>
+                    <textarea
+                      rows={2}
+                      value={formData.email_section_description}
+                      onChange={e => setFormData(prev => ({ ...prev, email_section_description: e.target.value }))}
+                      placeholder="Masukkan email Anda untuk mendapatkan notifikasi..."
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Teks Tombol</label>
+                    <input
+                      type="text"
+                      value={formData.email_button_text}
+                      onChange={e => setFormData(prev => ({ ...prev, email_button_text: e.target.value }))}
+                      placeholder="Berlangganan"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

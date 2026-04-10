@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tag, Copy, MessageCircle, ExternalLink, Clock, Mail, Loader2, CheckCircle } from "lucide-react";
+import { Tag, Copy, MessageCircle, ExternalLink, Clock, Mail, Loader2, CheckCircle, User } from "lucide-react";
 
 interface PromoInteractiveProps {
   promo_code: string | null;
@@ -10,6 +10,9 @@ interface PromoInteractiveProps {
   title: string;
   waNumber: string;
   show_subscriber_email: boolean;
+  email_section_title: string;
+  email_section_description: string;
+  email_button_text: string;
 }
 
 function useCountdown(expired_at: string | null) {
@@ -44,11 +47,22 @@ function useCountdown(expired_at: string | null) {
   return { timeLeft, expired };
 }
 
-export default function PromoInteractive({ promo_code, order_link, expired_at, title, waNumber, show_subscriber_email }: PromoInteractiveProps) {
+export default function PromoInteractive({
+  promo_code,
+  order_link,
+  expired_at,
+  title,
+  waNumber,
+  show_subscriber_email,
+  email_section_title,
+  email_section_description,
+  email_button_text,
+}: PromoInteractiveProps) {
   const { timeLeft, expired } = useCountdown(expired_at);
   const [copied, setCopied] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [subscriberName, setSubscriberName] = useState("");
   const [subscriberEmail, setSubscriberEmail] = useState("");
   const [emailError, setEmailError] = useState("");
 
@@ -56,7 +70,6 @@ export default function PromoInteractive({ promo_code, order_link, expired_at, t
     e.preventDefault();
     setEmailError("");
 
-    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(subscriberEmail)) {
       setEmailError("Email tidak valid");
@@ -68,7 +81,7 @@ export default function PromoInteractive({ promo_code, order_link, expired_at, t
       const response = await fetch("/api/email/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: subscriberEmail }),
+        body: JSON.stringify({ email: subscriberEmail, name: subscriberName }),
       });
 
       const data = await response.json();
@@ -78,9 +91,10 @@ export default function PromoInteractive({ promo_code, order_link, expired_at, t
       }
 
       setEmailSubmitted(true);
+      setSubscriberName("");
       setSubscriberEmail("");
       setTimeout(() => setEmailSubmitted(false), 3000);
-    } catch (error) {
+    } catch {
       setEmailError("Terjadi kesalahan. Silakan coba lagi.");
     } finally {
       setEmailLoading(false);
@@ -180,52 +194,66 @@ export default function PromoInteractive({ promo_code, order_link, expired_at, t
 
       {show_subscriber_email && (
         <div className="mt-8 p-6 rounded-3xl border border-slate-200 bg-white">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-2">
             <Mail className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-slate-900">Dapatkan Update Promo Terbaru</h3>
+            <h3 className="text-sm font-bold text-slate-900">{email_section_title}</h3>
           </div>
-          <p className="text-xs text-slate-500 mb-4">Masukkan email Anda untuk mendapatkan notifikasi tentang promo dan penawaran spesial lainnya.</p>
+          <p className="text-xs text-slate-500 mb-4">{email_section_description}</p>
 
           {emailSubmitted ? (
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
               <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-              <p className="text-sm font-semibold text-emerald-700">Email berhasil ditambahkan! Terima kasih.</p>
+              <p className="text-sm font-semibold text-emerald-700">Berhasil terdaftar! Terima kasih.</p>
             </div>
           ) : (
-            <form onSubmit={handleSubscribeEmail} className="flex flex-col sm:flex-row gap-2">
-              <div className="flex-1">
-                <input
-                  type="email"
-                  value={subscriberEmail}
-                  onChange={(e) => {
-                    setSubscriberEmail(e.target.value);
-                    setEmailError("");
-                  }}
-                  placeholder="nama@email.com"
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  disabled={emailLoading}
-                />
-                {emailError && (
-                  <p className="text-xs text-rose-500 font-medium mt-2">{emailError}</p>
-                )}
+            <form onSubmit={handleSubscribeEmail} className="space-y-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={subscriberName}
+                    onChange={(e) => setSubscriberName(e.target.value)}
+                    placeholder="Nama Anda"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    disabled={emailLoading}
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={subscriberEmail}
+                    onChange={(e) => {
+                      setSubscriberEmail(e.target.value);
+                      setEmailError("");
+                    }}
+                    placeholder="nama@email.com"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    disabled={emailLoading}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={emailLoading || !subscriberEmail}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary hover:bg-secondary text-white text-sm font-bold transition-all disabled:opacity-60 whitespace-nowrap"
+                >
+                  {emailLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      {email_button_text}
+                    </>
+                  )}
+                </button>
               </div>
-              <button
-                type="submit"
-                disabled={emailLoading || !subscriberEmail}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary hover:bg-secondary text-white text-sm font-bold transition-all disabled:opacity-60 whitespace-nowrap"
-              >
-                {emailLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Mengirim...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4" />
-                    Berlangganan
-                  </>
-                )}
-              </button>
+              {emailError && (
+                <p className="text-xs text-rose-500 font-medium">{emailError}</p>
+              )}
             </form>
           )}
         </div>

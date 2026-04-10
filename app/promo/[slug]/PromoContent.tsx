@@ -16,6 +16,9 @@ interface PromoContentProps {
     order_link: string | null;
     expired_at: string | null;
     show_subscriber_email: boolean;
+    email_section_title: string;
+    email_section_description: string;
+    email_button_text: string;
   };
   waNumber: string;
 }
@@ -111,7 +114,10 @@ export default function PromoContent({ promo, waNumber }: PromoContentProps) {
           expired_at={promo.expired_at}
           title={promo.title}
           waNumber={waNumber}
-          show_subscriber_email={promo.show_subscriber_email}
+          show_subscriber_email={promo.show_subscriber_email ?? false}
+          email_section_title={promo.email_section_title || "Dapatkan Update Promo Terbaru"}
+          email_section_description={promo.email_section_description || "Masukkan email Anda untuk mendapatkan notifikasi tentang promo dan penawaran spesial lainnya."}
+          email_button_text={promo.email_button_text || "Berlangganan"}
         />
 
         <div className="mt-10 pt-6 border-t border-slate-100">
